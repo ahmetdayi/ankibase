@@ -1,0 +1,514 @@
+/* ============================================================
+   app.js  –  Bootstrap & global event handlers
+   ============================================================ */
+
+// ── Global helpers (HTML onclick'ler için) ──────────────────
+function navigateTo(page)    { UI.navigateTo(page); }
+function showAnswer()        { Study.showAnswer(); }
+function rateCard(rating)    { Study.rate(rating); }
+function closeModal()        { UI.closeModal(); }
+function setTheme(theme)     { UI.setTheme(theme); }
+function confirmDelete(id)   { UI.openModal(id); }
+
+// ── Kart düzenleme ──────────────────────────────────────────
+function editCard(id) {
+    const card = Cards.getById(id);
+    if (!card) return;
+
+    document.getElementById('editCardId').value        = card.id;
+    document.getElementById('formTitle').textContent   = 'Kartı Düzenle';
+    document.getElementById('sentenceInput').value     = card.sentence;
+    document.getElementById('targetWordInput').value   = card.targetWord;
+    document.getElementById('wordTypeSelect').value    = card.wordType;
+    document.getElementById('meaningInput').value      = card.meaning      || '';
+    document.getElementById('explanationInput').value  = card.explanation  || '';
+    document.getElementById('extraExampleInput').value = card.extraExample || '';
+    document.getElementById('notesInput').value        = card.notes        || '';
+    document.getElementById('tagsInput').value         = (card.tags || []).join(', ');
+    document.getElementById('difficultySelect').value  = card.difficulty   || 'normal';
+
+    _buildClickablePreview(card.sentence, card.targetWord);
+    navigateTo('add-card');
+}
+
+// ── Formu sıfırla ───────────────────────────────────────────
+function resetForm() {
+    document.getElementById('cardForm').reset();
+    document.getElementById('editCardId').value      = '';
+    document.getElementById('formTitle').textContent = 'Yeni Kart Ekle';
+    document.getElementById('clickablePreviewGroup').style.display = 'none';
+    document.getElementById('clickablePreview').innerHTML = '';
+    navigateTo('dashboard');
+}
+
+// TextEncoder her zaman UTF-8 üretir; BOM baytları da elle eklenir
+function _csvBlob(csvString) {
+    const bom     = new Uint8Array([0xEF, 0xBB, 0xBF]);
+    const encoded = new TextEncoder().encode(csvString); // garantili UTF-8
+    return new Blob([bom, encoded], { type: 'text/csv;charset=utf-8;' });
+}
+
+function _triggerDownload(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// ── CSV export ──────────────────────────────────────────────
+function exportCSV() {
+    const blob = _csvBlob(Cards.toCSV());
+    _triggerDownload(blob, `ankibase_${Algorithm.todayStr()}.csv`);
+    UI.showToast('CSV indirildi!');
+}
+
+// ── CSV template ────────────────────────────────────────────
+function downloadTemplate() {
+    const headers = ['sentence','targetWord','wordType','meaning','explanation',
+                     'extraExample','notes','tags','difficulty'];
+    const examples = [
+        ['She quickly understood the problem.',
+         'quickly','adverb','hızlıca',
+         'In a quick or speedy manner.',
+         'He quickly left the room.',
+         'quickly = hız zarfı',
+         'adverb|B2','normal'],
+        ['The agreement was reached after long negotiations.',
+         'negotiations','noun','müzakereler',
+         'Formal discussions to reach an agreement.',
+         'Peace negotiations lasted three days.',
+         '','noun|business|C1','normal'],
+        ['She has a profound understanding of the subject.',
+         'profound','adjective','derin, köklü',
+         'Very great or intense; showing deep knowledge.',
+         'His speech had a profound effect on the audience.',
+         '','adjective|C1','hard'],
+    ];
+
+    // ; ayırıcı: Türk Excel bölgesel ayarlarıyla doğrudan uyumlu
+    const q   = v => `"${String(v).replace(/"/g, '""')}"`;
+    const csv = [headers, ...examples].map(r => r.map(q).join(';')).join('\r\n');
+    _triggerDownload(_csvBlob(csv), 'ankibase_template.csv');
+    UI.showToast('Template indirildi!');
+}
+
+// ── CSV import ──────────────────────────────────────────────
+function importCSV(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        const count = Cards.fromCSV(e.target.result);
+        UI.showToast(`${count} kart içe aktarıldı!`);
+        UI.renderDashboard();
+        event.target.value = '';
+    };
+    reader.readAsText(file, 'UTF-8');
+}
+
+// ── Anki .apkg / .colpkg import ─────────────────────────────
+
+function _loadScript(src) {
+    return new Promise((resolve, reject) => {
+        if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+        const s = Object.assign(document.createElement('script'), { src });
+        s.onload = resolve; s.onerror = reject;
+        document.head.appendChild(s);
+    });
+}
+
+function _stripHtml(html) {
+    return (html || '')
+        .replace(/\[sound:[^\]]+\]/g, '')
+        .replace(/<img[^>]*>/gi, '')
+        .replace(/<br\s*\/?>/gi, ' ')
+        .replace(/<div>/gi, ' ').replace(/<\/div>/gi, '')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ')
+        .replace(/\s+/g, ' ').trim();
+}
+
+// Anki alanlarından cümle + hedef kelime akıllıca çıkar
+function _ankiExtract(fields, isCloze) {
+    if (isCloze) {
+        const raw = fields[0] || '';
+        const m   = raw.match(/\{\{c\d+::([^:}]+)/);
+        return {
+            sentence:     _stripHtml(raw.replace(/\{\{c\d+::([^:}]+)(?:::[^}]*)?\}\}/g, '$1')),
+            targetWord:   m ? _stripHtml(m[1]) : '',
+            explanation:  _stripHtml(fields[1] || ''),
+            extraExample: _stripHtml(fields[2] || ''),
+        };
+    }
+
+    const clean = fields.map(f => _stripHtml(f || ''));
+    const f0 = clean[0], f1 = clean[1] || '', f2 = clean[2] || '', f3 = clean[3] || '';
+
+    const wordCount = s => (s ? s.split(/\s+/).filter(Boolean).length : 0);
+
+    // Kelime kartı: f0 kısa (≤3 kelime) ve f1 daha uzun → f0=hedef kelime, f1=cümle/açıklama
+    if (f0 && wordCount(f0) <= 3 && wordCount(f1) > wordCount(f0)) {
+        // Uzun bir örnek cümle olup olmadığını kontrol et
+        const example = [f2, f3].find(f => wordCount(f) > 3) || '';
+        return {
+            sentence:     example || f1 || f0,
+            targetWord:   f0,
+            explanation:  f1,
+            extraExample: (example && example !== f1) ? example : '',
+        };
+    }
+
+    // Cümle kartı: f0 cümledir; boşsa (görsel/ses ön yüz) f1'e düş
+    const rawFront = fields[0] || '';
+    const bold = rawFront.match(/<b[^>]*>([\s\S]*?)<\/b>/i);
+
+    if (f0) {
+        const targetWord = bold
+            ? _stripHtml(bold[1])
+            : (f0.split(/\s+/).filter(Boolean)[0] || '');
+        return { sentence: f0, targetWord, explanation: f1, extraExample: f2 };
+    } else {
+        // f0 görsel/ses — f1'i cümle olarak kullan
+        const targetWord = f1.split(/\s+/).filter(Boolean)[0] || '';
+        return { sentence: f1, targetWord, explanation: f2, extraExample: f3 };
+    }
+}
+
+async function importAnkiFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    event.target.value = '';
+
+    let db = null;
+    try {
+        UI.showToast('Kütüphaneler yükleniyor…');
+        await _loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+        await _loadScript('https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js');
+
+        UI.showToast('Dosya açılıyor…');
+        const buffer = await file.arrayBuffer();
+        const zip    = await JSZip.loadAsync(buffer);
+
+        const zipFiles = Object.keys(zip.files).join(', ');
+        console.log('[Anki Import] ZIP içeriği:', zipFiles);
+
+        // Öncelik: .anki21b (Anki 23.10+ zstd) → .anki21 → .anki2
+        const compressedEntry = zip.file('collection.anki21b');
+        const legacyEntry     = zip.file('collection.anki21') || zip.file('collection.anki2');
+
+        if (!compressedEntry && !legacyEntry) {
+            UI.showToast(`Geçersiz dosya. ZIP içeriği: ${zipFiles.slice(0, 100)}`, 'error');
+            return;
+        }
+
+        let dbBytes;
+        if (compressedEntry) {
+            // Anki 23.10+: zstd ile sıkıştırılmış SQLite — fzstd ile aç
+            UI.showToast('Sıkıştırılmış format açılıyor…');
+            await _loadScript('https://cdn.jsdelivr.net/npm/fzstd@0.1.1/umd/index.js');
+            const compressed = await compressedEntry.async('uint8array');
+            console.log('[Anki Import] Sıkıştırılmış:', compressed.length, 'bayt');
+            dbBytes = fzstd.decompress(compressed);
+            console.log('[Anki Import] Açılmış:', dbBytes.length, 'bayt');
+        } else {
+            UI.showToast('Veritabanı okunuyor…');
+            dbBytes = await legacyEntry.async('uint8array');
+        }
+        const SQL = await initSqlJs({
+            locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}`
+        });
+        db = new SQL.Database(dbBytes);
+
+        // ── 1. Koleksiyon meta bilgisi ──────────────────────────
+        let crt = 0, models = {};
+        try {
+            const colRes = db.exec('SELECT crt, models FROM col LIMIT 1');
+            crt    = Number(colRes[0]?.values[0]?.[0]) || 0;
+            models = JSON.parse(colRes[0]?.values[0]?.[1] || '{}') || {};
+        } catch (_) {
+            try {
+                const r = db.exec('SELECT crt FROM col LIMIT 1');
+                crt = Number(r[0]?.values[0]?.[0]) || 0;
+            } catch (_2) {}
+        }
+        console.log('[Anki Import] crt:', crt, '| model sayısı (col.models):', Object.keys(models).length);
+
+        // ── 2. Anki 24.x: col.models boşsa notetypes tablosunu dene ──
+        if (!Object.keys(models).length) {
+            try {
+                const ntRes = db.exec('SELECT id, name FROM notetypes');
+                (ntRes[0]?.values || []).forEach(([id, name]) => {
+                    const entry = { name, type: (name || '').toLowerCase().includes('cloze') ? 1 : 0 };
+                    models[id] = models[String(id)] = entry;
+                });
+                console.log('[Anki Import] notetypes tablosundan model sayısı:', Object.keys(models).length / 2);
+            } catch (_) {
+                console.warn('[Anki Import] notetypes tablosu okunamadı');
+            }
+        }
+
+        // ── 3. Notları + zamanlama verilerini çek ──────────────
+        let noteRows = [];
+        try {
+            const res = db.exec(`
+                SELECT n.id, n.mid, n.tags, n.flds,
+                       COALESCE(c.ivl, 0), COALESCE(c.factor, 0),
+                       COALESCE(c.reps, 0), COALESCE(c.due, 0), COALESCE(c.type, 0)
+                FROM notes n
+                LEFT JOIN cards c ON c.nid = n.id AND c.ord = 0
+            `);
+            noteRows = res[0]?.values || [];
+        } catch (sqlErr) {
+            console.warn('[Anki Import] Ana sorgu başarısız:', sqlErr.message);
+            try {
+                const res = db.exec('SELECT id, mid, tags, flds FROM notes');
+                noteRows = (res[0]?.values || []).map(r => [...r, 0, 0, 0, 0, 0]);
+            } catch (fallbackErr) {
+                throw new Error('notes tablosu okunamadı: ' + fallbackErr.message);
+            }
+        }
+
+        console.log('[Anki Import] Toplam not satırı:', noteRows.length);
+
+        if (!noteRows.length) {
+            UI.showToast('Koleksiyonda hiç not bulunamadı.', 'error');
+            db.close(); return;
+        }
+
+        // ── 4. Notları kartlara dönüştür ───────────────────────
+        const todayStr = Algorithm.todayStr();
+        let count = 0, skipped = 0;
+        const skipReasons = {};
+
+        Cards._suppressSave = true;
+
+        for (const row of noteRows) {
+            try {
+                const [, mid, rawTags, flds, ivl, factor, reps, due, ctype] = row;
+                const fields = String(flds || '').split('\x1f');
+
+                const model     = models[mid] || models[String(mid)];
+                const modelName = model ? (model.name || '').toLowerCase() : '';
+                const isCloze   = modelName.includes('cloze') || (model?.type === 1);
+
+                const { sentence, targetWord, explanation, extraExample } =
+                    _ankiExtract(fields, isCloze);
+
+                if (!sentence || !targetWord) {
+                    const reason = !sentence ? 'cümle_boş' : 'kelime_boş';
+                    skipReasons[reason] = (skipReasons[reason] || 0) + 1;
+                    skipped++;
+                    if (skipped <= 3) console.log('[Anki Import] Atlandı:', reason, '| fields[0]:', (fields[0] || '').slice(0, 80));
+                    continue;
+                }
+
+                const tags    = (rawTags || '').trim().split(/\s+/).filter(Boolean);
+                const cardIvl = (ivl > 0) ? Number(ivl) : 1;
+                const cardEF  = (factor > 0) ? Math.round(Number(factor)) / 1000 : 2.5;
+                const cardRep = Number(reps) || 0;
+
+                let dueDate = todayStr;
+                if (ctype === 2 && ivl > 0 && crt > 0) {
+                    const d = new Date((crt + Number(due) * 86400) * 1000);
+                    dueDate = d.toISOString().split('T')[0];
+                }
+
+                Cards.add({
+                    sentence, targetWord,
+                    wordType: 'other', meaning: '',
+                    explanation, extraExample, notes: '',
+                    tags: tags.join(','), difficulty: 'normal',
+                });
+
+                const c = Cards._list[0];
+                c.interval    = cardIvl;
+                c.easeFactor  = cardEF;
+                c.repetitions = cardRep;
+                c.dueDate     = dueDate;
+                c.reviewCount = cardRep;
+
+                count++;
+            } catch (noteErr) {
+                skipped++;
+                console.warn('[Anki Import] Kart işleme hatası:', noteErr.message);
+            }
+        }
+
+        Cards._suppressSave = false;
+        Cards._save();
+        db.close();
+
+        console.log('[Anki Import] Sonuç — aktarılan:', count, '| atlanılan:', skipped, '| nedenler:', skipReasons);
+
+        const msg = skipped
+            ? `${count} kart aktarıldı, ${skipped} atlandı.`
+            : `${count} Anki kartı başarıyla içe aktarıldı!`;
+        UI.showToast(msg);
+        UI.renderDashboard();
+
+    } catch (err) {
+        Cards._suppressSave = false;
+        Cards._save();
+        if (db) try { db.close(); } catch(_) {}
+        console.error('[Anki Import] Hata:', err);
+        UI.showToast('Hata: ' + (err.message || 'Dosya okunamadı'), 'error');
+    }
+}
+
+// ── Tüm veriyi sil ──────────────────────────────────────────
+function clearAllData() {
+    if (!confirm('Tüm veriler silinecek. Bu işlem geri alınamaz. Emin misiniz?')) return;
+    Storage.clearAll();
+    Cards.init();
+    UI.showToast('Tüm veriler silindi.', 'error');
+    navigateTo('dashboard');
+}
+
+// ── Clickable sentence preview ──────────────────────────────
+function _buildClickablePreview(sentence, preSelectedWord) {
+    if (!sentence || !sentence.trim()) {
+        document.getElementById('clickablePreviewGroup').style.display = 'none';
+        return;
+    }
+    const preview = document.getElementById('clickablePreview');
+    const group   = document.getElementById('clickablePreviewGroup');
+
+    // Kelimelere ve boşluklara ayır
+    const tokens = sentence.match(/\S+|\s+/g) || [];
+    preview.innerHTML = tokens.map(token => {
+        if (/^\s+$/.test(token)) return token;
+        // Noktalama işaretlerini kelimeden ayır (basit yaklaşım)
+        const m = token.match(/^([^a-zA-Z]*)([a-zA-Z'-]+)([^a-zA-Z]*)$/);
+        if (!m || !m[2]) return `<span>${token}</span>`;
+        const [, pre, word, post] = m;
+        return `${pre}<span class="clickable-word" data-word="${word}">${word}</span>${post}`;
+    }).join('');
+
+    group.style.display = 'block';
+
+    // Önceden seçili kelimeyi işaretle
+    if (preSelectedWord) {
+        preview.querySelectorAll('.clickable-word').forEach(el => {
+            if (el.dataset.word.toLowerCase() === preSelectedWord.toLowerCase())
+                el.classList.add('selected');
+        });
+    }
+
+    // Tıklama
+    preview.querySelectorAll('.clickable-word').forEach(el => {
+        el.addEventListener('click', () => {
+            preview.querySelectorAll('.clickable-word').forEach(w => w.classList.remove('selected'));
+            el.classList.add('selected');
+            document.getElementById('targetWordInput').value = el.dataset.word;
+        });
+    });
+}
+
+// ── App başlatma ────────────────────────────────────────────
+function initApp() {
+    Cards.init();
+
+    // Ayarları yükle
+    const settings = Storage.loadSettings();
+    UI.setTheme(settings.theme || 'dark');
+    const limitEl = document.getElementById('dailyLimitInput');
+    if (limitEl) limitEl.value = settings.dailyLimit || 20;
+
+    // ── Navigasyon ──
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('click', e => {
+            e.preventDefault();
+            navigateTo(link.dataset.page);
+        });
+    });
+
+    // ── Sidebar ──
+    document.getElementById('menuBtn').addEventListener('click', () => UI.toggleSidebar());
+    document.getElementById('sidebarClose').addEventListener('click', () => UI.closeSidebar());
+    document.getElementById('sidebarOverlay').addEventListener('click', () => UI.closeSidebar());
+
+    // ── Kart formu ──
+    document.getElementById('cardForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const id   = document.getElementById('editCardId').value;
+        const data = {
+            sentence:     document.getElementById('sentenceInput').value,
+            targetWord:   document.getElementById('targetWordInput').value,
+            wordType:     document.getElementById('wordTypeSelect').value,
+            meaning:      document.getElementById('meaningInput').value,
+            explanation:  document.getElementById('explanationInput').value,
+            extraExample: document.getElementById('extraExampleInput').value,
+            notes:        document.getElementById('notesInput').value,
+            tags:         document.getElementById('tagsInput').value,
+            difficulty:   document.getElementById('difficultySelect').value,
+        };
+        if (id) {
+            Cards.update(id, data);
+            UI.showToast('Kart güncellendi!');
+        } else {
+            Cards.add(data);
+            UI.showToast('Kart eklendi!');
+        }
+        resetForm();
+    });
+
+    // ── Cümle input → clickable preview ──
+    document.getElementById('sentenceInput').addEventListener('input', e => {
+        _buildClickablePreview(e.target.value);
+    });
+
+    // ── Hedef kelime input ↔ preview sync ──
+    document.getElementById('targetWordInput').addEventListener('input', e => {
+        const w = e.target.value.toLowerCase();
+        document.getElementById('clickablePreview')
+            .querySelectorAll('.clickable-word')
+            .forEach(el => el.classList.toggle('selected', el.dataset.word.toLowerCase() === w));
+    });
+
+    // ── Arama + filtre ──
+    document.getElementById('searchInput')?.addEventListener('input', () => UI.renderCardList());
+    document.getElementById('filterType')?.addEventListener('change', () => UI.renderCardList());
+
+    // ── Silme onayı ──
+    document.getElementById('confirmDeleteBtn').addEventListener('click', () => {
+        if (!UI.deleteTargetId) return;
+        Cards.delete(UI.deleteTargetId);
+        UI.closeModal();
+        UI.renderCardList();
+        UI.showToast('Kart silindi.', 'error');
+    });
+
+    // ── Günlük limit ayarı ──
+    document.getElementById('dailyLimitInput')?.addEventListener('change', e => {
+        const s = Storage.loadSettings();
+        s.dailyLimit = parseInt(e.target.value) || 20;
+        Storage.saveSettings(s);
+    });
+
+    // ── Klavye kısayolları ──
+    document.addEventListener('keydown', e => {
+        const tag = document.activeElement.tagName;
+        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) return;
+        if (UI.currentPage !== 'study') return;
+
+        if (e.code === 'Space') {
+            e.preventDefault();
+            Study.showAnswer();
+            return;
+        }
+        if (!Study.isAnswerShown) return;
+        if (e.key === '1') rateCard('again');
+        if (e.key === '2') rateCard('hard');
+        if (e.key === '3') rateCard('good');
+        if (e.key === '4') rateCard('easy');
+    });
+
+    // ── İlk render ──
+    UI.renderDashboard();
+}
+
+document.addEventListener('DOMContentLoaded', initApp);

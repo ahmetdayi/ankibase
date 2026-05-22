@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir \"C:\\\\Users\\\\dayi\\\\Desktop\\\\anki-base\")",
+      "PowerShell(New-Item -ItemType Directory -Force \"C:\\\\Users\\\\dayi\\\\Desktop\\\\anki-base\\\\icons\")",
+      "Bash(where npx *)",
+      "mcp__Claude_Preview__preview_start"
+    ]
+  }
+}
