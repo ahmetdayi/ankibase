@@ -509,6 +509,57 @@ function initApp() {
 
     // ── İlk render ──
     UI.renderDashboard();
+
+    // ── Kalıcı depolama iste (kartlar silinmesin) ──
+    _initPersistentStorage();
+}
+
+// ── Kalıcı depolama yönetimi ────────────────────────────────
+async function _initPersistentStorage() {
+    if (!navigator.storage) return;
+
+    // Henüz kalıcı değilse tarayıcıdan izin iste
+    try {
+        const already = await navigator.storage.persisted();
+        if (!already) await navigator.storage.persist();
+    } catch (_) {}
+
+    // Ayarlar sayfasındaki durumu güncelle
+    _updateStorageStatus();
+
+    // Kalıcı değilse ve kart varsa uyarı göster
+    try {
+        const persisted = await navigator.storage.persisted();
+        if (!persisted && Cards.getAll().length > 0) {
+            setTimeout(() => {
+                UI.showToast(
+                    '⚠️ Veriler korunmuyor! Ayarlar\'dan CSV yedek alın.',
+                    'error'
+                );
+            }, 2000);
+        }
+    } catch (_) {}
+}
+
+async function _updateStorageStatus() {
+    const el = document.getElementById('storageStatus');
+    if (!el || !navigator.storage) return;
+    try {
+        const [persisted, estimate] = await Promise.all([
+            navigator.storage.persisted(),
+            navigator.storage.estimate(),
+        ]);
+        const usedKB = Math.round((estimate.usage || 0) / 1024);
+        if (persisted) {
+            el.textContent = `✅ Korumalı (${usedKB} KB)`;
+            el.style.color = 'var(--success, #10b981)';
+        } else {
+            el.textContent = `⚠️ Korumasız – yedek alın (${usedKB} KB)`;
+            el.style.color = 'var(--danger, #ef4444)';
+        }
+    } catch (_) {
+        el.textContent = 'Bilinmiyor';
+    }
 }
 
 document.addEventListener('DOMContentLoaded', initApp);
