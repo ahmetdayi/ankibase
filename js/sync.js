@@ -102,18 +102,11 @@ const Sync = {
             const local  = Storage.loadCards();
 
             if (remote.length > 0) {
-                // Merge: remote wins; push any local-only cards (offline additions)
-                const remoteIds = new Set(remote.map(c => c.id));
-                const localOnly = local.filter(c => !remoteIds.has(c.id));
-                Storage.saveCards([...remote, ...localOnly]);
+                // Remote her zaman kaynak — silinen kartların geri gelmesini önler
+                Storage.saveCards(remote);
                 Cards.init();
-                if (localOnly.length) {
-                    const rows = localOnly.map(c => this._toRow(c));
-                    for (let i = 0; i < rows.length; i += 500)
-                        await this.client.from('cards').upsert(rows.slice(i, i + 500), { onConflict: 'id' });
-                }
             } else if (local.length) {
-                // Remote empty (first login): push all local cards up
+                // Remote boş (ilk giriş): local kartları Supabase'e yükle
                 const rows = local.map(c => this._toRow(c));
                 for (let i = 0; i < rows.length; i += 500)
                     await this.client.from('cards').upsert(rows.slice(i, i + 500), { onConflict: 'id' });
