@@ -28,7 +28,8 @@ const Study = {
     rate(rating) {
         if (!this.isAnswerShown || !this.current) return;
 
-        Cards.review(this.current.id, rating);
+        const reviewed = Cards.review(this.current.id, rating);
+        if (typeof Sync !== 'undefined' && Sync.user) Sync.pushCard(reviewed).catch(console.warn);
 
         if (rating === 'again') {
             // Kartı kuyruğun biraz ilerisine koy
@@ -75,7 +76,10 @@ const Study = {
         document.getElementById('backTargetWord').textContent = card.targetWord;
         document.getElementById('backWordType').textContent   = UI.wordTypeName(card.wordType);
 
-        this._setOrHide('backMeaning',     card.meaning);
+        const meaningLabel = card.meaning
+            ? ((card.meaningLang || 'tr') === 'en' ? '🇬🇧 ' : '🇹🇷 ') + card.meaning
+            : '';
+        this._setOrHide('backMeaning', meaningLabel);
         document.getElementById('backExplanation').textContent = card.explanation || '';
         this._setOrHide('backExample', card.extraExample ? '✦ ' + card.extraExample : '');
         this._setOrHide('backNotes',   card.notes        ? '📝 ' + card.notes       : '');

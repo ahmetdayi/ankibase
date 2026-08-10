@@ -20,6 +20,7 @@ const Cards = {
             targetWord:   data.targetWord.trim(),
             wordType:     data.wordType,
             meaning:      (data.meaning    || '').trim(),
+            meaningLang:  data.meaningLang || 'tr',
             explanation:  data.explanation.trim(),
             extraExample: (data.extraExample || '').trim(),
             notes:        (data.notes       || '').trim(),
@@ -48,6 +49,7 @@ const Cards = {
             targetWord:   data.targetWord.trim(),
             wordType:     data.wordType,
             meaning:      (data.meaning    || '').trim(),
+            meaningLang:  data.meaningLang || 'tr',
             explanation:  data.explanation.trim(),
             extraExample: (data.extraExample || '').trim(),
             notes:        (data.notes       || '').trim(),
@@ -100,7 +102,7 @@ const Cards = {
 
     // -------- CSV --------
     toCSV() {
-        const h = ['sentence','targetWord','wordType','meaning','explanation',
+        const h = ['sentence','targetWord','wordType','meaning','meaningLang','explanation',
                    'extraExample','notes','tags','difficulty',
                    'interval','easeFactor','repetitions','dueDate','reviewCount'];
         const rows = this._list.map(c =>

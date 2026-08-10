@@ -15,8 +15,56 @@
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
     <link rel="stylesheet" href="css/style.css">
+    <style>
+        .auth-overlay {
+            position: fixed; inset: 0; z-index: 9999;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--bg, #1a1a2e);
+        }
+        .auth-card {
+            background: var(--surface, #16213e);
+            border-radius: 16px; padding: 40px;
+            width: min(420px, 90vw);
+            box-shadow: 0 20px 60px rgba(0,0,0,.5);
+        }
+        .auth-header { text-align: center; margin-bottom: 28px; }
+        .auth-logo   { font-size: 52px; margin-bottom: 8px; }
+        .auth-title  { font-size: 26px; margin: 0 0 6px; color: var(--text, #e2e8f0); }
+        .auth-subtitle { color: var(--text-secondary, #94a3b8); font-size: 14px; margin: 0; }
+        .auth-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+        .auth-tabs .btn { flex: 1; }
+        .auth-message {
+            font-size: 13px; padding: 10px 12px; border-radius: 8px;
+            margin-bottom: 12px; line-height: 1.5;
+        }
+        .auth-message.error   { color: var(--danger, #ef4444); background: rgba(239,68,68,.1); }
+        .auth-message.success { color: var(--success, #10b981); background: rgba(16,185,129,.1); }
+    </style>
 </head>
 <body>
+
+<!-- ========== AUTH SCREEN ========== -->
+<div id="authScreen" class="auth-overlay" style="display:none">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="auth-logo">🧠</div>
+            <h1 class="auth-title">AnkiBase</h1>
+            <p class="auth-subtitle">Kelime kartlarınız her yerde</p>
+        </div>
+        <form id="authForm" onsubmit="submitAuth(event)">
+            <div class="form-group">
+                <label>E-posta</label>
+                <input type="email" id="authEmail" required placeholder="ornek@email.com">
+            </div>
+            <div class="form-group">
+                <label>Şifre</label>
+                <input type="password" id="authPassword" required placeholder="Şifrenizi girin" minlength="6">
+            </div>
+            <div id="authMessage" class="auth-message" style="display:none"></div>
+            <button type="submit" class="btn btn-primary" id="authSubmitBtn" style="width:100%">Giriş Yap</button>
+        </form>
+    </div>
+</div>
 
 <!-- ========== SIDEBAR ========== -->
 <nav class="sidebar" id="sidebar">
@@ -111,7 +159,7 @@
                 <div class="form-group">
                     <label for="sentenceInput">Ön Yüz – Cümle *</label>
                     <textarea id="sentenceInput" placeholder='She quickly understood the problem.' rows="3" required></textarea>
-                    <small>Cümleyi yazdıktan sonra hedef kelimeye tıklayarak seçebilirsiniz.</small>
+                    <small>Cümleyi yazdıktan sonra kelimelere tıklayarak seçin. Birden fazla kelime seçilebilir (depend on, look it up gibi).</small>
                 </div>
 
                 <div class="form-group" id="clickablePreviewGroup" style="display:none">
@@ -141,8 +189,15 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="meaningInput">Türkçe Anlam</label>
+                    <label for="meaningInput" style="display:flex;align-items:center;gap:10px">
+                        Anlam
+                        <span class="toggle-group" style="margin:0">
+                            <button type="button" id="meaningLangTR" class="toggle-btn active" onclick="setMeaningLang('tr')">TR</button>
+                            <button type="button" id="meaningLangEN" class="toggle-btn"        onclick="setMeaningLang('en')">EN</button>
+                        </span>
+                    </label>
                     <input type="text" id="meaningInput" placeholder="hızlıca, çabucak">
+                    <input type="hidden" id="meaningLangInput" value="tr">
                 </div>
 
                 <div class="form-group">
@@ -298,6 +353,34 @@
             <h2>Ayarlar</h2>
 
             <div class="settings-group">
+                <h3>Hesap</h3>
+                <div class="setting-item">
+                    <span style="font-size:14px;color:var(--text-secondary)">Giriş yapılan hesap</span>
+                    <span style="font-size:13px;color:var(--text,#e2e8f0)" id="accountEmail">–</span>
+                </div>
+                <div class="setting-item">
+                    <span style="font-size:14px;color:var(--text-secondary)">Senkronizasyon durumu</span>
+                    <span style="font-size:13px;color:var(--text-secondary)" id="syncStatus">Bağlı</span>
+                </div>
+                <div class="setting-item">
+                    <span style="font-size:14px;color:var(--text-secondary)">Verileri senkronize et</span>
+                    <button class="btn btn-secondary btn-sm" id="syncBtn" onclick="manualSync()">🔄 Şimdi Senkronize Et</button>
+                </div>
+                <div class="setting-item" style="flex-direction:column;align-items:flex-start;gap:8px">
+                    <span style="font-size:14px;color:var(--text-secondary)">Şifre değiştir</span>
+                    <div style="display:flex;gap:8px;width:100%;flex-wrap:wrap">
+                        <input type="password" id="newPassword" placeholder="Yeni şifre (min. 6 karakter)"
+                               minlength="6" style="flex:1;min-width:180px" class="settings-input">
+                        <button class="btn btn-secondary btn-sm" onclick="changePassword()">Kaydet</button>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <span style="font-size:14px;color:var(--text-secondary)">Oturumu kapat</span>
+                    <button class="btn btn-danger btn-sm" onclick="logOut()">Çıkış Yap</button>
+                </div>
+            </div>
+
+            <div class="settings-group">
                 <h3>Görünüm</h3>
                 <div class="setting-item">
                     <label>Tema</label>
@@ -399,11 +482,13 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/algorithm.js"></script>
 <script src="js/cards.js"></script>
 <script src="js/study.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/sync.js"></script>
 <script src="js/app.js"></script>
 
 <script>

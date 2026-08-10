@@ -2,6 +2,119 @@
    app.js  –  Bootstrap & global event handlers
    ============================================================ */
 
+// ── Auth state ──────────────────────────────────────────────
+let _appInitialized = false;
+
+function _showAuthScreen() {
+    document.getElementById('authScreen').style.display = 'flex';
+}
+
+function _hideAuthScreen() {
+    document.getElementById('authScreen').style.display = 'none';
+}
+
+async function _startApp() {
+    _hideAuthScreen();
+    UI.showToast('Yükleniyor…');
+    await Sync.pullAndMerge();
+    if (!_appInitialized) {
+        initApp();
+        _appInitialized = true;
+    } else {
+        Cards.init();
+        UI.renderDashboard();
+    }
+    _updateAccountUI();
+}
+
+function _updateAccountUI() {
+    const emailEl = document.getElementById('accountEmail');
+    if (emailEl && Sync.user) emailEl.textContent = Sync.user.email;
+}
+
+// ── Auth UI handlers ────────────────────────────────────────
+function switchAuthTab() {} // login-only — no tabs
+
+function _authMsg(text, type = 'error') {
+    const el = document.getElementById('authMessage');
+    el.className = `auth-message ${type}`;
+    el.textContent = text;
+    el.style.display = 'block';
+}
+
+function _translateAuthError(msg) {
+    if (!msg) return 'Bilinmeyen hata.';
+    if (msg.includes('Invalid login credentials'))  return 'E-posta veya şifre hatalı.';
+    if (msg.includes('Email not confirmed'))         return 'E-posta doğrulanmamış.';
+    if (msg.includes('Password should be at least')) return 'Şifre en az 6 karakter olmalı.';
+    return msg;
+}
+
+async function submitAuth(e) {
+    e.preventDefault();
+    const email     = document.getElementById('authEmail').value.trim();
+    const password  = document.getElementById('authPassword').value;
+    const submitBtn = document.getElementById('authSubmitBtn');
+
+    submitBtn.disabled    = true;
+    submitBtn.textContent = 'Giriş yapılıyor…';
+    document.getElementById('authMessage').style.display = 'none';
+
+    try {
+        await Sync.signIn(email, password);
+        await _startApp();
+    } catch (err) {
+        _authMsg(_translateAuthError(err.message));
+        submitBtn.disabled    = false;
+        submitBtn.textContent = 'Giriş Yap';
+    }
+}
+
+async function logOut() {
+    if (!confirm('Çıkış yapmak istediğinizden emin misiniz?')) return;
+    await Sync.signOut();
+    Storage.clearAll();
+    Cards.init();
+    _appInitialized = false;
+    document.getElementById('authEmail').value    = '';
+    document.getElementById('authPassword').value = '';
+    _showAuthScreen();
+}
+
+async function changePassword() {
+    const input = document.getElementById('newPassword');
+    const pw    = input.value.trim();
+    if (pw.length < 6) { UI.showToast('Şifre en az 6 karakter olmalı.', 'error'); return; }
+    try {
+        await Sync.updatePassword(pw);
+        input.value = '';
+        UI.showToast('Şifre güncellendi!');
+    } catch (err) {
+        UI.showToast('Hata: ' + err.message, 'error');
+    }
+}
+
+async function manualSync() {
+    const btn = document.getElementById('syncBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Senkronize ediliyor…'; }
+    try {
+        await Sync.pullAndMerge();
+        UI.renderDashboard();
+        UI.showToast('Senkronizasyon tamamlandı!');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '🔄 Şimdi Senkronize Et'; }
+    }
+}
+
+// ── Meaning language toggle ──────────────────────────────────
+function setMeaningLang(lang) {
+    document.getElementById('meaningLangInput').value = lang;
+    document.getElementById('meaningLangTR').classList.toggle('active', lang === 'tr');
+    document.getElementById('meaningLangEN').classList.toggle('active', lang === 'en');
+    document.getElementById('meaningInput').placeholder =
+        lang === 'tr' ? 'hızlıca, çabucak' : 'quickly, swiftly';
+}
+
 // ── Global helpers (HTML onclick'ler için) ──────────────────
 function navigateTo(page)    { UI.navigateTo(page); }
 function showAnswer()        { Study.showAnswer(); }
@@ -21,6 +134,7 @@ function editCard(id) {
     document.getElementById('targetWordInput').value   = card.targetWord;
     document.getElementById('wordTypeSelect').value    = card.wordType;
     document.getElementById('meaningInput').value      = card.meaning      || '';
+    setMeaningLang(card.meaningLang || 'tr');
     document.getElementById('explanationInput').value  = card.explanation  || '';
     document.getElementById('extraExampleInput').value = card.extraExample || '';
     document.getElementById('notesInput').value        = card.notes        || '';
@@ -38,13 +152,13 @@ function resetForm() {
     document.getElementById('formTitle').textContent = 'Yeni Kart Ekle';
     document.getElementById('clickablePreviewGroup').style.display = 'none';
     document.getElementById('clickablePreview').innerHTML = '';
+    setMeaningLang('tr');
     navigateTo('dashboard');
 }
 
-// TextEncoder her zaman UTF-8 üretir; BOM baytları da elle eklenir
 function _csvBlob(csvString) {
     const bom     = new Uint8Array([0xEF, 0xBB, 0xBF]);
-    const encoded = new TextEncoder().encode(csvString); // garantili UTF-8
+    const encoded = new TextEncoder().encode(csvString);
     return new Blob([bom, encoded], { type: 'text/csv;charset=utf-8;' });
 }
 
@@ -88,7 +202,6 @@ function downloadTemplate() {
          '','adjective|C1','hard'],
     ];
 
-    // ; ayırıcı: Türk Excel bölgesel ayarlarıyla doğrudan uyumlu
     const q   = v => `"${String(v).replace(/"/g, '""')}"`;
     const csv = [headers, ...examples].map(r => r.map(q).join(';')).join('\r\n');
     _triggerDownload(_csvBlob(csv), 'ankibase_template.csv');
@@ -100,11 +213,12 @@ function importCSV(event) {
     const file = event.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = e => {
+    reader.onload = async e => {
         const count = Cards.fromCSV(e.target.result);
         UI.showToast(`${count} kart içe aktarıldı!`);
         UI.renderDashboard();
         event.target.value = '';
+        if (count > 0) Sync.pushAll().catch(console.warn);
     };
     reader.readAsText(file, 'UTF-8');
 }
@@ -132,7 +246,6 @@ function _stripHtml(html) {
         .replace(/\s+/g, ' ').trim();
 }
 
-// Anki alanlarından cümle + hedef kelime akıllıca çıkar
 function _ankiExtract(fields, isCloze) {
     if (isCloze) {
         const raw = fields[0] || '';
@@ -147,12 +260,9 @@ function _ankiExtract(fields, isCloze) {
 
     const clean = fields.map(f => _stripHtml(f || ''));
     const f0 = clean[0], f1 = clean[1] || '', f2 = clean[2] || '', f3 = clean[3] || '';
-
     const wordCount = s => (s ? s.split(/\s+/).filter(Boolean).length : 0);
 
-    // Kelime kartı: f0 kısa (≤3 kelime) ve f1 daha uzun → f0=hedef kelime, f1=cümle/açıklama
     if (f0 && wordCount(f0) <= 3 && wordCount(f1) > wordCount(f0)) {
-        // Uzun bir örnek cümle olup olmadığını kontrol et
         const example = [f2, f3].find(f => wordCount(f) > 3) || '';
         return {
             sentence:     example || f1 || f0,
@@ -162,7 +272,6 @@ function _ankiExtract(fields, isCloze) {
         };
     }
 
-    // Cümle kartı: f0 cümledir; boşsa (görsel/ses ön yüz) f1'e düş
     const rawFront = fields[0] || '';
     const bold = rawFront.match(/<b[^>]*>([\s\S]*?)<\/b>/i);
 
@@ -172,7 +281,6 @@ function _ankiExtract(fields, isCloze) {
             : (f0.split(/\s+/).filter(Boolean)[0] || '');
         return { sentence: f0, targetWord, explanation: f1, extraExample: f2 };
     } else {
-        // f0 görsel/ses — f1'i cümle olarak kullan
         const targetWord = f1.split(/\s+/).filter(Boolean)[0] || '';
         return { sentence: f1, targetWord, explanation: f2, extraExample: f3 };
     }
@@ -196,7 +304,6 @@ async function importAnkiFile(event) {
         const zipFiles = Object.keys(zip.files).join(', ');
         console.log('[Anki Import] ZIP içeriği:', zipFiles);
 
-        // Öncelik: .anki21b (Anki 23.10+ zstd) → .anki21 → .anki2
         const compressedEntry = zip.file('collection.anki21b');
         const legacyEntry     = zip.file('collection.anki21') || zip.file('collection.anki2');
 
@@ -207,7 +314,6 @@ async function importAnkiFile(event) {
 
         let dbBytes;
         if (compressedEntry) {
-            // Anki 23.10+: zstd ile sıkıştırılmış SQLite — fzstd ile aç
             UI.showToast('Sıkıştırılmış format açılıyor…');
             await _loadScript('https://cdn.jsdelivr.net/npm/fzstd@0.1.1/umd/index.js');
             const compressed = await compressedEntry.async('uint8array');
@@ -218,12 +324,12 @@ async function importAnkiFile(event) {
             UI.showToast('Veritabanı okunuyor…');
             dbBytes = await legacyEntry.async('uint8array');
         }
+
         const SQL = await initSqlJs({
             locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}`
         });
         db = new SQL.Database(dbBytes);
 
-        // ── 1. Koleksiyon meta bilgisi ──────────────────────────
         let crt = 0, models = {};
         try {
             const colRes = db.exec('SELECT crt, models FROM col LIMIT 1');
@@ -235,9 +341,8 @@ async function importAnkiFile(event) {
                 crt = Number(r[0]?.values[0]?.[0]) || 0;
             } catch (_2) {}
         }
-        console.log('[Anki Import] crt:', crt, '| model sayısı (col.models):', Object.keys(models).length);
+        console.log('[Anki Import] crt:', crt, '| model sayısı:', Object.keys(models).length);
 
-        // ── 2. Anki 24.x: col.models boşsa notetypes tablosunu dene ──
         if (!Object.keys(models).length) {
             try {
                 const ntRes = db.exec('SELECT id, name FROM notetypes');
@@ -251,7 +356,6 @@ async function importAnkiFile(event) {
             }
         }
 
-        // ── 3. Notları + zamanlama verilerini çek ──────────────
         let noteRows = [];
         try {
             const res = db.exec(`
@@ -279,7 +383,6 @@ async function importAnkiFile(event) {
             db.close(); return;
         }
 
-        // ── 4. Notları kartlara dönüştür ───────────────────────
         const todayStr = Algorithm.todayStr();
         let count = 0, skipped = 0;
         const skipReasons = {};
@@ -350,6 +453,8 @@ async function importAnkiFile(event) {
         UI.showToast(msg);
         UI.renderDashboard();
 
+        if (count > 0) Sync.pushAll().catch(console.warn);
+
     } catch (err) {
         Cards._suppressSave = false;
         Cards._save();
@@ -360,8 +465,9 @@ async function importAnkiFile(event) {
 }
 
 // ── Tüm veriyi sil ──────────────────────────────────────────
-function clearAllData() {
+async function clearAllData() {
     if (!confirm('Tüm veriler silinecek. Bu işlem geri alınamaz. Emin misiniz?')) return;
+    Sync.removeAllCards().catch(console.warn);
     Storage.clearAll();
     Cards.init();
     UI.showToast('Tüm veriler silindi.', 'error');
@@ -377,33 +483,52 @@ function _buildClickablePreview(sentence, preSelectedWord) {
     const preview = document.getElementById('clickablePreview');
     const group   = document.getElementById('clickablePreviewGroup');
 
-    // Kelimelere ve boşluklara ayır
+    // Kelimelere sıra numarası ver
+    let wordIdx = 0;
     const tokens = sentence.match(/\S+|\s+/g) || [];
     preview.innerHTML = tokens.map(token => {
         if (/^\s+$/.test(token)) return token;
-        // Noktalama işaretlerini kelimeden ayır (basit yaklaşım)
         const m = token.match(/^([^a-zA-Z]*)([a-zA-Z'-]+)([^a-zA-Z]*)$/);
         if (!m || !m[2]) return `<span>${token}</span>`;
         const [, pre, word, post] = m;
-        return `${pre}<span class="clickable-word" data-word="${word}">${word}</span>${post}`;
+        const idx = wordIdx++;
+        return `${pre}<span class="clickable-word" data-word="${word}" data-idx="${idx}">${word}</span>${post}`;
     }).join('');
 
     group.style.display = 'block';
 
-    // Önceden seçili kelimeyi işaretle
+    const getSpans = () => [...preview.querySelectorAll('.clickable-word')];
+
+    // Önceden seçili kelime: tek veya çok kelimeli ("depend on" gibi)
     if (preSelectedWord) {
-        preview.querySelectorAll('.clickable-word').forEach(el => {
-            if (el.dataset.word.toLowerCase() === preSelectedWord.toLowerCase())
-                el.classList.add('selected');
-        });
+        const words = preSelectedWord.trim().split(/\s+/).filter(Boolean);
+        const spans = getSpans();
+        if (words.length === 1) {
+            spans.forEach(el => {
+                if (el.dataset.word.toLowerCase() === words[0].toLowerCase())
+                    el.classList.add('selected');
+            });
+        } else {
+            for (let i = 0; i <= spans.length - words.length; i++) {
+                if (words.every((w, j) => spans[i + j]?.dataset.word.toLowerCase() === w.toLowerCase())) {
+                    words.forEach((_, j) => spans[i + j].classList.add('selected'));
+                    break;
+                }
+            }
+        }
     }
 
-    // Tıklama
-    preview.querySelectorAll('.clickable-word').forEach(el => {
+    // Toggle seçimi: her tık kelimeyi seçer/kaldırır
+    // Birden fazla kelime seçilebilir (cümlede geçiş sırasına göre birleştirilir)
+    const updateTargetFromSelection = () => {
+        const selected = getSpans().filter(w => w.classList.contains('selected'));
+        document.getElementById('targetWordInput').value = selected.map(w => w.dataset.word).join(' ');
+    };
+
+    getSpans().forEach(el => {
         el.addEventListener('click', () => {
-            preview.querySelectorAll('.clickable-word').forEach(w => w.classList.remove('selected'));
-            el.classList.add('selected');
-            document.getElementById('targetWordInput').value = el.dataset.word;
+            el.classList.toggle('selected');
+            updateTargetFromSelection();
         });
     });
 }
@@ -412,7 +537,6 @@ function _buildClickablePreview(sentence, preSelectedWord) {
 function initApp() {
     Cards.init();
 
-    // Ayarları yükle
     const settings = Storage.loadSettings();
     UI.setTheme(settings.theme || 'dark');
     const limitEl = document.getElementById('dailyLimitInput');
@@ -440,6 +564,7 @@ function initApp() {
             targetWord:   document.getElementById('targetWordInput').value,
             wordType:     document.getElementById('wordTypeSelect').value,
             meaning:      document.getElementById('meaningInput').value,
+            meaningLang:  document.getElementById('meaningLangInput').value || 'tr',
             explanation:  document.getElementById('explanationInput').value,
             extraExample: document.getElementById('extraExampleInput').value,
             notes:        document.getElementById('notesInput').value,
@@ -447,11 +572,13 @@ function initApp() {
             difficulty:   document.getElementById('difficultySelect').value,
         };
         if (id) {
-            Cards.update(id, data);
+            const updated = Cards.update(id, data);
             UI.showToast('Kart güncellendi!');
+            Sync.pushCard(updated).catch(console.warn);
         } else {
-            Cards.add(data);
+            const card = Cards.add(data);
             UI.showToast('Kart eklendi!');
+            Sync.pushCard(card).catch(console.warn);
         }
         resetForm();
     });
@@ -463,10 +590,10 @@ function initApp() {
 
     // ── Hedef kelime input ↔ preview sync ──
     document.getElementById('targetWordInput').addEventListener('input', e => {
-        const w = e.target.value.toLowerCase();
+        const typed = e.target.value.toLowerCase().trim().split(/\s+/).filter(Boolean);
         document.getElementById('clickablePreview')
             .querySelectorAll('.clickable-word')
-            .forEach(el => el.classList.toggle('selected', el.dataset.word.toLowerCase() === w));
+            .forEach(el => el.classList.toggle('selected', typed.includes(el.dataset.word.toLowerCase())));
     });
 
     // ── Arama + filtre ──
@@ -476,7 +603,9 @@ function initApp() {
     // ── Silme onayı ──
     document.getElementById('confirmDeleteBtn').addEventListener('click', () => {
         if (!UI.deleteTargetId) return;
-        Cards.delete(UI.deleteTargetId);
+        const id = UI.deleteTargetId;
+        Cards.delete(id);
+        Sync.removeCard(id).catch(console.warn);
         UI.closeModal();
         UI.renderCardList();
         UI.showToast('Kart silindi.', 'error');
@@ -510,32 +639,23 @@ function initApp() {
     // ── İlk render ──
     UI.renderDashboard();
 
-    // ── Kalıcı depolama iste (kartlar silinmesin) ──
+    // ── Kalıcı depolama ──
     _initPersistentStorage();
 }
 
 // ── Kalıcı depolama yönetimi ────────────────────────────────
 async function _initPersistentStorage() {
     if (!navigator.storage) return;
-
-    // Henüz kalıcı değilse tarayıcıdan izin iste
     try {
         const already = await navigator.storage.persisted();
         if (!already) await navigator.storage.persist();
     } catch (_) {}
-
-    // Ayarlar sayfasındaki durumu güncelle
     _updateStorageStatus();
-
-    // Kalıcı değilse ve kart varsa uyarı göster
     try {
         const persisted = await navigator.storage.persisted();
         if (!persisted && Cards.getAll().length > 0) {
             setTimeout(() => {
-                UI.showToast(
-                    '⚠️ Veriler korunmuyor! Ayarlar\'dan CSV yedek alın.',
-                    'error'
-                );
+                UI.showToast('⚠️ Veriler korunmuyor! Ayarlar\'dan CSV yedek alın.', 'error');
             }, 2000);
         }
     } catch (_) {}
@@ -562,4 +682,12 @@ async function _updateStorageStatus() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', initApp);
+document.addEventListener('DOMContentLoaded', async () => {
+    Sync.init();
+    const user = await Sync.getSession();
+    if (!user) {
+        _showAuthScreen();
+    } else {
+        await _startApp();
+    }
+});

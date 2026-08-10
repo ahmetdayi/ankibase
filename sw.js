@@ -3,7 +3,7 @@
    Sürüm numarasını (CACHE) her uygulama güncellemesinde artır
    ============================================================ */
 
-const CACHE = 'ankibase-v2';
+const CACHE = 'ankibase-v3';
 
 const PRECACHE_ASSETS = [
     './',
@@ -14,6 +14,7 @@ const PRECACHE_ASSETS = [
     './js/cards.js',
     './js/study.js',
     './js/ui.js',
+    './js/sync.js',
     './js/app.js',
     './manifest.json',
     './icons/icon.svg',
@@ -21,7 +22,6 @@ const PRECACHE_ASSETS = [
     './icons/icon-512.png',
 ];
 
-// Kurulum: tüm uygulama dosyalarını önbelleğe al
 self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(CACHE)
@@ -30,7 +30,6 @@ self.addEventListener('install', event => {
     );
 });
 
-// Aktifleştirme: eski önbellek sürümlerini temizle
 self.addEventListener('activate', event => {
     event.waitUntil(
         caches.keys().then(keys =>
@@ -41,13 +40,20 @@ self.addEventListener('activate', event => {
     );
 });
 
-// Fetch: önce önbellekten sun, yoksa ağdan al
 self.addEventListener('fetch', event => {
     if (event.request.method !== 'GET') return;
 
-    // CDN kütüphanelerini (JSZip, sql.js) ağdan al, başarısız olursa önbellekten
     const url = new URL(event.request.url);
-    const isCDN = url.hostname.includes('cdnjs.cloudflare.com');
+
+    // Supabase API: always network, never cache
+    if (url.hostname.includes('supabase.co')) {
+        event.respondWith(fetch(event.request));
+        return;
+    }
+
+    // CDN kütüphaneleri: önce ağdan al, başarısız olursa önbellekten
+    const isCDN = url.hostname.includes('cdnjs.cloudflare.com') ||
+                  url.hostname.includes('cdn.jsdelivr.net');
 
     if (isCDN) {
         event.respondWith(
