@@ -3,7 +3,7 @@
    Sürüm numarasını (CACHE) her uygulama güncellemesinde artır
    ============================================================ */
 
-const CACHE = 'ankibase-v3';
+const CACHE = 'ankibase-v4';
 
 const PRECACHE_ASSETS = [
     './',
@@ -68,7 +68,21 @@ self.addEventListener('fetch', event => {
         return;
     }
 
-    // Uygulama dosyaları: önce önbellek
+    // JS dosyaları: önce ağ (güncel kodu al), başarısız olursa önbellekten
+    if (url.pathname.endsWith('.js')) {
+        event.respondWith(
+            fetch(event.request)
+                .then(res => {
+                    const clone = res.clone();
+                    caches.open(CACHE).then(c => c.put(event.request, clone));
+                    return res;
+                })
+                .catch(() => caches.match(event.request))
+        );
+        return;
+    }
+
+    // Diğer uygulama dosyaları (HTML, CSS, görseller): önce önbellek
     event.respondWith(
         caches.match(event.request)
             .then(cached => cached || fetch(event.request)
