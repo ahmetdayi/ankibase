@@ -653,7 +653,7 @@ async function _initPersistentStorage() {
     _updateStorageStatus();
     try {
         const persisted = await navigator.storage.persisted();
-        if (!persisted && Cards.getAll().length > 0) {
+        if (!persisted && Cards.getAll().length > 0 && !Sync.user) {
             setTimeout(() => {
                 UI.showToast('⚠️ Veriler korunmuyor! Ayarlar\'dan CSV yedek alın.', 'error');
             }, 2000);
