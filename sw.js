@@ -74,29 +74,14 @@ self.addEventListener('fetch', event => {
         return;
     }
 
-    // JS dosyaları: önce ağ (güncel kodu al), başarısız olursa önbellekten
-    if (url.pathname.endsWith('.js')) {
-        event.respondWith(
-            fetch(event.request)
-                .then(res => {
-                    const clone = res.clone();
-                    caches.open(CACHE).then(c => c.put(event.request, clone));
-                    return res;
-                })
-                .catch(() => caches.match(event.request))
-        );
-        return;
-    }
-
-    // Diğer uygulama dosyaları (HTML, CSS, görseller): önce önbellek
+    // Tüm uygulama dosyaları: önce ağ, bağlantı yoksa önbellekten
     event.respondWith(
-        caches.match(event.request)
-            .then(cached => cached || fetch(event.request)
-                .then(res => {
-                    const clone = res.clone();
-                    caches.open(CACHE).then(c => c.put(event.request, clone));
-                    return res;
-                })
-            )
+        fetch(event.request)
+            .then(res => {
+                const clone = res.clone();
+                caches.open(CACHE).then(c => c.put(event.request, clone));
+                return res;
+            })
+            .catch(() => caches.match(event.request))
     );
 });
