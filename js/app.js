@@ -17,6 +17,7 @@ async function _startApp() {
     _hideAuthScreen();
     UI.showToast('Yükleniyor…');
     await Sync.pullAndMerge();
+    Sync.subscribeToChanges();
     if (!_appInitialized) {
         initApp();
         _appInitialized = true;
@@ -693,6 +694,7 @@ if ('serviceWorker' in navigator) {
         if (e.data?.type === 'SW_UPDATED') window.location.reload();
     });
 }
+
 
 document.addEventListener('DOMContentLoaded', async () => {
     Sync.init();

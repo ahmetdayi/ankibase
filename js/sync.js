@@ -9,9 +9,29 @@ const Sync = {
     client:     null,
     user:       null,
     lastSynced: null,
+    _channel:   null,
 
     init() {
         this.client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    },
+
+    // Realtime: karttaki her değişikliği dinle, UI'ı güncelle
+    subscribeToChanges() {
+        if (!this.user || !this.client) return;
+        if (this._channel) this.client.removeChannel(this._channel);
+
+        this._channel = this.client
+            .channel('cards-realtime')
+            .on('postgres_changes', {
+                event:  '*',
+                schema: 'public',
+                table:  'cards',
+                filter: `user_id=eq.${this.user.id}`,
+            }, async () => {
+                await this.pullAndMerge();
+                if (typeof UI !== 'undefined') UI.renderDashboard();
+            })
+            .subscribe();
     },
 
     // ── Auth ─────────────────────────────────────────────────
