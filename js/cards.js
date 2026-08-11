@@ -6,7 +6,7 @@ const Cards = {
     _suppressSave: false,   // toplu import sırasında ara save'leri atla
 
     init() {
-        this._list = Storage.loadCards();
+        this._list = [];
     },
 
     getAll() { return [...this._list]; },
@@ -194,5 +194,5 @@ const Cards = {
         Storage.saveStats(s);
     },
 
-    _save() { Storage.saveCards(this._list); },
+    _save() { /* localStorage kullanılmıyor — Supabase kaynak */ },
 };
