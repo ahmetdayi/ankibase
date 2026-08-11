@@ -10,6 +10,7 @@ const Sync = {
     user:       null,
     lastSynced: null,
     _channel:   null,
+    _pollTimer: null,
 
     init() {
         this.client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -27,12 +28,17 @@ const Sync = {
 
         this._channel = this.client
             .channel('cards-realtime')
-            // INSERT / UPDATE: postgres_changes ile yakala
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'cards' }, handler)
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cards' }, handler)
-            // DELETE: broadcast ile yakala (RLS, postgres_changes DELETE'i bloke eder)
             .on('broadcast', { event: 'card_deleted' }, handler)
             .subscribe();
+
+        // DELETE Realtime güvenilir değil — 10sn'de bir poll ile yakala
+        if (this._pollTimer) clearInterval(this._pollTimer);
+        this._pollTimer = setInterval(async () => {
+            await this.pullAndMerge();
+            if (typeof UI !== 'undefined') UI.renderDashboard();
+        }, 10000);
     },
 
     // ── Auth ─────────────────────────────────────────────────
