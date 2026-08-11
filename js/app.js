@@ -687,6 +687,13 @@ async function _updateStorageStatus() {
     }
 }
 
+// Yeni Service Worker aktif olduğunda sayfayı otomatik yenile
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', e => {
+        if (e.data?.type === 'SW_UPDATED') window.location.reload();
+    });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     Sync.init();
     const user = await Sync.getSession();
