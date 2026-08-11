@@ -20,16 +20,18 @@ const Sync = {
         if (!this.user || !this.client) return;
         if (this._channel) this.client.removeChannel(this._channel);
 
+        const handler = async () => {
+            await this.pullAndMerge();
+            if (typeof UI !== 'undefined') UI.renderDashboard();
+        };
+
         this._channel = this.client
             .channel('cards-realtime')
-            .on('postgres_changes', {
-                event:  '*',
-                schema: 'public',
-                table:  'cards',
-            }, async () => {
-                await this.pullAndMerge();
-                if (typeof UI !== 'undefined') UI.renderDashboard();
-            })
+            // INSERT / UPDATE: postgres_changes ile yakala
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'cards' }, handler)
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cards' }, handler)
+            // DELETE: broadcast ile yakala (RLS, postgres_changes DELETE'i bloke eder)
+            .on('broadcast', { event: 'card_deleted' }, handler)
             .subscribe();
     },
 
@@ -79,10 +81,12 @@ const Sync = {
     async removeCard(id) {
         if (!this.user || !this.client) return;
         try {
-            const { error, count } = await this.client
-                .from('cards').delete({ count: 'exact' }).eq('id', id);
-            if (error) console.warn('[Sync] removeCard error:', error.message);
-            else console.log(`[Sync] removeCard id=${id} → silinen: ${count}`);
+            const { error } = await this.client.from('cards').delete().eq('id', id);
+            if (error) { console.warn('[Sync] removeCard error:', error.message); return; }
+            // DELETE Realtime RLS tarafından bloke edildiğinden broadcast gönder
+            if (this._channel) {
+                await this._channel.send({ type: 'broadcast', event: 'card_deleted', payload: { id } });
+            }
         } catch (e) { console.warn('[Sync] removeCard exception:', e); }
     },
 
