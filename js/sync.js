@@ -26,7 +26,6 @@ const Sync = {
                 event:  '*',
                 schema: 'public',
                 table:  'cards',
-                filter: `user_id=eq.${this.user.id}`,
             }, async () => {
                 await this.pullAndMerge();
                 if (typeof UI !== 'undefined') UI.renderDashboard();
