@@ -601,12 +601,17 @@ function initApp() {
     document.getElementById('filterType')?.addEventListener('change', () => UI.renderCardList());
 
     // ── Silme onayı ──
-    document.getElementById('confirmDeleteBtn').addEventListener('click', () => {
+    document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
         if (!UI.deleteTargetId) return;
-        const id = UI.deleteTargetId;
+        const id  = UI.deleteTargetId;
+        const btn = document.getElementById('confirmDeleteBtn');
+        btn.disabled    = true;
+        btn.textContent = 'Siliniyor…';
         Cards.delete(id);
-        Sync.removeCard(id).catch(console.warn);
+        await Sync.removeCard(id).catch(console.warn);
         UI.closeModal();
+        btn.disabled    = false;
+        btn.textContent = 'Sil';
         UI.renderCardList();
         UI.showToast('Kart silindi.', 'error');
     });

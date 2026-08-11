@@ -60,8 +60,10 @@ const Sync = {
     async removeCard(id) {
         if (!this.user || !this.client) return;
         try {
-            const { error } = await this.client.from('cards').delete().eq('id', id);
-            if (error) console.warn('[Sync] removeCard:', error.message);
+            const { error, count } = await this.client
+                .from('cards').delete({ count: 'exact' }).eq('id', id);
+            if (error) console.warn('[Sync] removeCard error:', error.message);
+            else console.log(`[Sync] removeCard id=${id} → silinen: ${count}`);
         } catch (e) { console.warn('[Sync] removeCard exception:', e); }
     },
 
@@ -96,25 +98,31 @@ const Sync = {
                 .from('cards')
                 .select('*')
                 .order('created_at', { ascending: false });
-            if (error) { console.warn('[Sync] pull:', error.message); return false; }
+            if (error) { console.warn('[Sync] pull error:', error.message); return false; }
 
             const remote = (data || []).map(r => this._fromRow(r));
             const local  = Storage.loadCards();
+            console.log(`[Sync] pullAndMerge → remote: ${remote.length}, local: ${local.length}`);
 
             if (remote.length > 0) {
                 // Remote her zaman kaynak — silinen kartların geri gelmesini önler
                 Storage.saveCards(remote);
                 Cards.init();
-            } else if (local.length) {
-                // Remote boş (ilk giriş): local kartları Supabase'e yükle
+                console.log('[Sync] ← remote kullanıldı');
+            } else if (local.length && !localStorage.getItem('ankibase_synced')) {
+                // Remote boş ve hiç sync edilmemiş: ilk girişte local kartları yükle
+                console.log('[Sync] → ilk giriş: local kartlar Supabase\'e yükleniyor');
                 const rows = local.map(c => this._toRow(c));
                 for (let i = 0; i < rows.length; i += 500)
                     await this.client.from('cards').upsert(rows.slice(i, i + 500), { onConflict: 'id' });
+            } else {
+                console.log('[Sync] ← remote boş, local üzerine yazılmadı');
             }
 
+            localStorage.setItem('ankibase_synced', '1');
             this._markSynced();
             return true;
-        } catch (e) { console.warn('[Sync] pullAndMerge:', e); return false; }
+        } catch (e) { console.warn('[Sync] pullAndMerge exception:', e); return false; }
     },
 
     _markSynced() {
