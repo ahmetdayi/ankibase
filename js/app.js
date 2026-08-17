@@ -601,7 +601,27 @@ function initApp() {
     });
 
     // ── Arama + filtre ──
-    document.getElementById('searchInput')?.addEventListener('input', () => UI.renderCardList());
+    // Kart arama + aile filtresi — dinamik oluştur (Chrome autofill engellemek için)
+    const listControls = document.querySelector('#page-card-list .list-controls');
+    if (listControls) {
+        const searchInput = document.createElement('input');
+        searchInput.id          = 'searchInput';
+        searchInput.placeholder = 'Kart ara…';
+        searchInput.className   = 'search-input';
+        searchInput.setAttribute('autocomplete', 'off');
+        searchInput.addEventListener('input', () => UI.renderCardList());
+        listControls.insertBefore(searchInput, listControls.firstChild);
+
+        const filterFamily = document.createElement('input');
+        filterFamily.id          = 'filterFamily';
+        filterFamily.placeholder = 'Aile filtrele…';
+        filterFamily.className   = 'search-input';
+        filterFamily.style.maxWidth = '160px';
+        filterFamily.setAttribute('autocomplete', 'off');
+        filterFamily.addEventListener('input', () => UI.renderCardList());
+        const filterType = document.getElementById('filterType');
+        if (filterType) listControls.insertBefore(filterFamily, filterType);
+    }
     document.getElementById('filterType')?.addEventListener('change', () => UI.renderCardList());
 
     // ── Silme onayı ──
@@ -619,17 +639,6 @@ function initApp() {
         UI.renderCardList();
         UI.showToast('Kart silindi.', 'error');
     });
-
-    // ── Aile filtresi — dinamik oluştur (Chrome autofill engellemek için) ──
-    const filterFamily = document.createElement('input');
-    filterFamily.id          = 'filterFamily';
-    filterFamily.placeholder = 'Aile filtrele…';
-    filterFamily.className   = 'search-input';
-    filterFamily.style.maxWidth = '160px';
-    filterFamily.setAttribute('autocomplete', 'off');
-    filterFamily.addEventListener('input', () => UI.renderCardList());
-    const filterType = document.getElementById('filterType');
-    if (filterType) filterType.parentNode.insertBefore(filterFamily, filterType);
 
     // ── Günlük limit ayarı ──
     document.getElementById('dailyLimitInput')?.addEventListener('change', e => {
