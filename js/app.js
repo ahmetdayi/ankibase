@@ -535,8 +535,6 @@ function _buildClickablePreview(sentence, preSelectedWord) {
 
 // ── App başlatma ────────────────────────────────────────────
 function initApp() {
-    Cards.init();
-
     const settings = Storage.loadSettings();
     UI.setTheme(settings.theme || 'dark');
     const limitEl = document.getElementById('dailyLimitInput');
