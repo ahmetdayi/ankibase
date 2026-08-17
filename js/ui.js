@@ -32,7 +32,7 @@ const UI = {
     },
 
     // -------- Navigation --------
-    navigateTo(page) {
+    navigateTo(page, { skipHistory = false } = {}) {
         document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
 
@@ -51,6 +51,8 @@ const UI = {
         };
         document.getElementById('pageTitle').textContent = titles[page] || page;
         this.currentPage = page;
+
+        if (!skipHistory) history.pushState({ page }, '', '#' + page);
 
         if (page === 'dashboard')  this.renderDashboard();
         if (page === 'card-list')  this.renderCardList();

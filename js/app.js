@@ -30,6 +30,8 @@ async function _startApp() {
         UI.renderDashboard();
     }
     _updateAccountUI();
+    // Geri butonunun ilk basışı dashboard'da kalacak şekilde başlangıç state'i koy
+    history.replaceState({ page: 'dashboard' }, '', '#dashboard');
 }
 
 function _updateAccountUI() {
@@ -180,6 +182,7 @@ function _viewCard(id) {
         document.getElementById('viewEditBtn').onclick = () => { closeViewModal(); editCard(id); };
         document.getElementById('viewModalOverlay').style.display = 'flex';
         document.body.style.overflow = 'hidden';
+        history.pushState({ page: UI.currentPage, modal: 'view' }, '');
     };
 
     if (card) { show(card); return; }
@@ -192,6 +195,8 @@ function _viewCard(id) {
 function closeViewModal() {
     document.getElementById('viewModalOverlay').style.display = 'none';
     document.body.style.overflow = '';
+    // Modal için pushState edilmişse geri al
+    if (history.state?.modal === 'view') history.back();
 }
 
 // ── Kart düzenleme ──────────────────────────────────────────
@@ -785,6 +790,21 @@ async function _updateStorageStatus() {
         el.textContent = 'Bilinmiyor';
     }
 }
+
+// ── Geri butonu (PWA Android) ───────────────────────────────
+window.addEventListener('popstate', e => {
+    // View modal açıksa kapat, sayfaya dönme
+    const viewModal = document.getElementById('viewModalOverlay');
+    if (viewModal && viewModal.style.display !== 'none') {
+        viewModal.style.display = 'none';
+        document.body.style.overflow = '';
+        return;
+    }
+    const page = e.state?.page || 'dashboard';
+    if (typeof UI !== 'undefined' && page !== UI.currentPage) {
+        UI.navigateTo(page, { skipHistory: true });
+    }
+});
 
 // Yeni Service Worker aktif olduğunda sayfayı otomatik yenile
 if ('serviceWorker' in navigator) {
