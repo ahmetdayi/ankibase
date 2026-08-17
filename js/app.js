@@ -620,8 +620,16 @@ function initApp() {
         UI.showToast('Kart silindi.', 'error');
     });
 
-    // ── Aile filtresi ──
-    document.getElementById('filterFamily')?.addEventListener('input', () => UI.renderCardList());
+    // ── Aile filtresi — dinamik oluştur (Chrome autofill engellemek için) ──
+    const filterFamily = document.createElement('input');
+    filterFamily.id          = 'filterFamily';
+    filterFamily.placeholder = 'Aile filtrele…';
+    filterFamily.className   = 'search-input';
+    filterFamily.style.maxWidth = '160px';
+    filterFamily.setAttribute('autocomplete', 'off');
+    filterFamily.addEventListener('input', () => UI.renderCardList());
+    const filterType = document.getElementById('filterType');
+    if (filterType) filterType.parentNode.insertBefore(filterFamily, filterType);
 
     // ── Günlük limit ayarı ──
     document.getElementById('dailyLimitInput')?.addEventListener('change', e => {
