@@ -54,11 +54,11 @@
         <form id="authForm" onsubmit="submitAuth(event)">
             <div class="form-group">
                 <label>E-posta</label>
-                <input type="email" id="authEmail" required placeholder="ornek@email.com">
+                <input type="email" id="authEmail" required placeholder="ornek@email.com" autocomplete="username">
             </div>
             <div class="form-group">
                 <label>Şifre</label>
-                <input type="password" id="authPassword" required placeholder="Şifrenizi girin" minlength="6">
+                <input type="password" id="authPassword" required placeholder="Şifrenizi girin" minlength="6" autocomplete="current-password">
             </div>
             <div id="authMessage" class="auth-message" style="display:none"></div>
             <button type="submit" class="btn btn-primary" id="authSubmitBtn" style="width:100%">Giriş Yap</button>
@@ -373,7 +373,7 @@
                     <span style="font-size:14px;color:var(--text-secondary)">Şifre değiştir</span>
                     <div style="display:flex;gap:8px;width:100%;flex-wrap:wrap">
                         <input type="password" id="newPassword" placeholder="Yeni şifre (min. 6 karakter)"
-                               minlength="6" style="flex:1;min-width:180px" class="settings-input">
+                               minlength="6" style="flex:1;min-width:180px" class="settings-input" autocomplete="new-password">
                         <button class="btn btn-secondary btn-sm" onclick="changePassword()">Kaydet</button>
                     </div>
                 </div>
