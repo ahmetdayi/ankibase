@@ -127,6 +127,72 @@ function rateCard(rating)    { Study.rate(rating); }
 function closeModal()        { UI.closeModal(); }
 function setTheme(theme)     { UI.setTheme(theme); }
 function confirmDelete(id)   { UI.openModal(id); }
+function viewCard(id)        { _viewCard(id); }  // HTML onclick için sarmalayıcı
+
+// ── Kart görüntüleme (salt okunur) ──────────────────────────
+function _viewCard(id) {
+    const card = Cards.getById(id) || (() => {
+        // fetchCards sonuçlarında geçici olarak bulunamayabilir, Supabase'den çek
+        return null;
+    })();
+
+    // Önce Cards._list'te ara, yoksa Sync.fetchCards ile bul
+    const show = (card) => {
+        if (!card) return;
+
+        document.getElementById('viewTargetWord').textContent = card.targetWord;
+
+        const badge = document.getElementById('viewWordType');
+        badge.textContent = UI.wordTypeName(card.wordType);
+        badge.className   = `word-type-badge type-badge-${card.wordType}`;
+
+        const famEl = document.getElementById('viewWordFamily');
+        if (card.wordFamily) { famEl.textContent = '🔗 ' + card.wordFamily; famEl.style.display = 'inline'; }
+        else                 { famEl.style.display = 'none'; }
+
+        document.getElementById('viewSentence').innerHTML = UI.highlightWord(card.sentence, card.targetWord);
+
+        const fields = [];
+        const row = (icon, label, val) => val
+            ? `<div class="cvf-row"><span class="cvf-label">${icon} ${label}</span><span class="cvf-value">${UI._esc(val)}</span></div>`
+            : '';
+
+        if (card.meaning)      fields.push(row('🇹🇷', 'TR Anlam',    card.meaning));
+        if (card.meaningEn)    fields.push(row('🇬🇧', 'EN Anlam',    card.meaningEn));
+        if (card.explanation)  fields.push(row('📖', 'Açıklama',     card.explanation));
+        if (card.extraExample) fields.push(row('✦', 'Örnek cümle',  card.extraExample));
+        if (card.notes)        fields.push(row('📝', 'Not',          card.notes));
+        if (card.tags?.length) fields.push(`<div class="cvf-row"><span class="cvf-label">🏷 Etiketler</span><span class="cvf-value">${card.tags.map(t => `<span class="tag-pill">${UI._esc(t)}</span>`).join(' ')}</span></div>`);
+
+        fields.push(`<div class="cvf-row cvf-stats">
+            <span>🔁 ${card.repetitions} tekrar</span>
+            <span>📅 ${card.interval} gün aralık</span>
+            <span>⚡ EF ${card.easeFactor?.toFixed(2)}</span>
+        </div>`);
+
+        document.getElementById('viewFields').innerHTML = fields.join('');
+
+        const today = Algorithm.todayStr();
+        const due   = card.dueDate;
+        const dueLabel = due === today ? 'Bugün' : due < today ? `Gecikmiş (${due})` : due;
+        document.getElementById('viewDue').textContent = `Son görülme: ${card.lastReviewedAt ? card.lastReviewedAt.slice(0,10) : '—'}  ·  Sonraki: ${dueLabel}`;
+
+        document.getElementById('viewEditBtn').onclick = () => { closeViewModal(); editCard(id); };
+        document.getElementById('viewModalOverlay').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    };
+
+    if (card) { show(card); return; }
+
+    // Cards._list'te yoksa (sayfalama nedeniyle) Supabase'den direkt çek
+    Sync.client.from('cards').select('*').eq('id', id).single()
+        .then(({ data }) => show(data ? Sync._fromRow(data) : null));
+}
+
+function closeViewModal() {
+    document.getElementById('viewModalOverlay').style.display = 'none';
+    document.body.style.overflow = '';
+}
 
 // ── Kart düzenleme ──────────────────────────────────────────
 function editCard(id) {

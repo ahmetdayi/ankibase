@@ -127,6 +127,7 @@ const UI = {
                     </div>
                 </div>
                 <div class="card-list-actions">
+                    <button class="btn-icon" onclick="viewCard('${card.id}')" title="Görüntüle">👁</button>
                     <button class="btn-icon" onclick="editCard('${card.id}')" title="Düzenle">✏️</button>
                     <button class="btn-icon delete" onclick="confirmDelete('${card.id}')" title="Sil">🗑️</button>
                 </div>

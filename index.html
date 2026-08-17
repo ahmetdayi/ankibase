@@ -483,6 +483,31 @@
 <div class="toast" id="toast"></div>
 
 <!-- ========== DELETE MODAL ========== -->
+<!-- ===== CARD VIEW MODAL ===== -->
+<div class="modal-overlay" id="viewModalOverlay" style="display:none" onclick="closeViewModal()">
+    <div class="modal card-view-modal" onclick="event.stopPropagation()">
+        <div class="card-view-header">
+            <div>
+                <span id="viewWordType" class="word-type-badge"></span>
+                <span id="viewWordFamily" class="tag-pill" style="background:var(--accent,#6366f1);color:#fff;display:none"></span>
+            </div>
+            <button class="btn-icon" onclick="closeViewModal()" style="font-size:18px">✕</button>
+        </div>
+        <h2 id="viewTargetWord" style="font-size:28px;margin:8px 0 4px"></h2>
+        <div id="viewSentence" class="card-view-sentence"></div>
+
+        <div class="card-view-fields" id="viewFields"></div>
+
+        <div class="card-view-footer">
+            <span id="viewDue" style="font-size:12px;color:var(--text-muted)"></span>
+            <div style="display:flex;gap:8px">
+                <button class="btn btn-ghost btn-sm" onclick="closeViewModal()">Kapat</button>
+                <button class="btn btn-primary btn-sm" id="viewEditBtn">✏️ Düzenle</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal-overlay" id="modalOverlay" style="display:none">
     <div class="modal">
         <h3>Kartı Sil</h3>

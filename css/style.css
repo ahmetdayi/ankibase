@@ -532,6 +532,33 @@ kbd {
 .modal p { color:var(--text-secondary); margin-bottom:24px; }
 .modal-actions { display:flex; gap:12px; justify-content:flex-end; }
 
+/* Card View Modal */
+.card-view-modal {
+    max-width:560px; width:100%;
+    max-height:90vh; overflow-y:auto;
+    display:flex; flex-direction:column; gap:12px;
+}
+.card-view-header { display:flex; justify-content:space-between; align-items:center; }
+.card-view-sentence {
+    font-size:16px; color:var(--text-secondary);
+    padding:10px 14px; background:var(--bg-secondary);
+    border-radius:var(--r-md); border-left:3px solid var(--accent,#6366f1);
+}
+.card-view-fields { display:flex; flex-direction:column; gap:6px; margin-top:4px; }
+.cvf-row {
+    display:flex; gap:10px; align-items:baseline;
+    padding:8px 12px; border-radius:var(--r-md);
+    background:var(--bg-secondary); font-size:14px;
+}
+.cvf-label { color:var(--text-muted); white-space:nowrap; min-width:110px; font-size:13px; }
+.cvf-value { color:var(--text-primary); flex:1; }
+.cvf-stats { justify-content:space-around; color:var(--text-muted); font-size:12px; }
+.cvf-stats span { flex:none; }
+.card-view-footer {
+    display:flex; justify-content:space-between; align-items:center;
+    margin-top:8px; padding-top:12px; border-top:1px solid var(--border);
+}
+
 /* ============================================================
    WORD TYPE COLORS
    ============================================================ */
