@@ -4,6 +4,11 @@
 
 // ── Auth state ──────────────────────────────────────────────
 let _appInitialized = false;
+let _cardListPage   = 0;
+
+function cardListPrevPage() { if (_cardListPage > 0) { _cardListPage--; UI.renderCardList(); } }
+function cardListNextPage() { _cardListPage++; UI.renderCardList(); }
+function _resetCardListPage() { _cardListPage = 0; }
 
 function _showAuthScreen() {
     document.getElementById('authScreen').style.display = 'flex';
@@ -606,7 +611,7 @@ function initApp() {
         searchInput.placeholder = 'Kart ara…';
         searchInput.className   = 'search-input';
         searchInput.setAttribute('autocomplete', 'off');
-        searchInput.addEventListener('input', () => UI.renderCardList());
+        searchInput.addEventListener('input', () => { _resetCardListPage(); UI.renderCardList(); });
         listControls.insertBefore(searchInput, listControls.firstChild);
 
         const filterFamily = document.createElement('input');
@@ -615,11 +620,11 @@ function initApp() {
         filterFamily.className   = 'search-input';
         filterFamily.style.maxWidth = '160px';
         filterFamily.setAttribute('autocomplete', 'off');
-        filterFamily.addEventListener('input', () => UI.renderCardList());
+        filterFamily.addEventListener('input', () => { _resetCardListPage(); UI.renderCardList(); });
         const filterType = document.getElementById('filterType');
         if (filterType) listControls.insertBefore(filterFamily, filterType);
     }
-    document.getElementById('filterType')?.addEventListener('change', () => UI.renderCardList());
+    document.getElementById('filterType')?.addEventListener('change', () => { _resetCardListPage(); UI.renderCardList(); });
 
     // ── Silme onayı ──
     document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {

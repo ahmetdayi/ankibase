@@ -112,6 +112,22 @@ const Sync = {
         this._markSynced();
     },
 
+    // Card list: server-side search + pagination
+    async fetchCards({ search = '', wordType = '', family = '', page = 0, pageSize = 20 } = {}) {
+        if (!this.user || !this.client) return { cards: [], total: 0 };
+        try {
+            let q = this.client.from('cards').select('*', { count: 'exact' });
+            if (search) q = q.or(`sentence.ilike.%${search}%,target_word.ilike.%${search}%,meaning.ilike.%${search}%,meaning_en.ilike.%${search}%`);
+            if (wordType) q = q.eq('word_type', wordType);
+            if (family)   q = q.ilike('word_family', `%${family}%`);
+            q = q.order('created_at', { ascending: false })
+                 .range(page * pageSize, (page + 1) * pageSize - 1);
+            const { data, count, error } = await q;
+            if (error) { console.warn('[Sync] fetchCards:', error.message); return { cards: [], total: 0 }; }
+            return { cards: (data || []).map(r => this._fromRow(r)), total: count || 0 };
+        } catch (e) { console.warn('[Sync] fetchCards exception:', e); return { cards: [], total: 0 }; }
+    },
+
     // Pull from Supabase and merge with local
     async pullAndMerge() {
         if (!this.user || !this.client) return false;

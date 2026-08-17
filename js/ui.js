@@ -88,25 +88,22 @@ const UI = {
     },
 
     // -------- Card List --------
-    renderCardList() {
-        const search  = (document.getElementById('searchInput')?.value  || '').toLowerCase();
-        const type    =  document.getElementById('filterType')?.value   || '';
-        const family  = (document.getElementById('filterFamily')?.value || '').toLowerCase().trim();
-        let cards = Cards.getAll();
-
-        if (search) cards = cards.filter(c =>
-            c.sentence.toLowerCase().includes(search) ||
-            c.targetWord.toLowerCase().includes(search) ||
-            c.meaning.toLowerCase().includes(search)
-        );
-        if (type)   cards = cards.filter(c => c.wordType === type);
-        if (family) cards = cards.filter(c => (c.wordFamily || '').toLowerCase().includes(family));
+    async renderCardList() {
+        const search   = (document.getElementById('searchInput')?.value  || '').trim();
+        const wordType =  document.getElementById('filterType')?.value   || '';
+        const family   = (document.getElementById('filterFamily')?.value || '').trim();
+        const page     = typeof _cardListPage !== 'undefined' ? _cardListPage : 0;
+        const pageSize = 20;
 
         const container = document.getElementById('cardsList');
         if (!container) return;
+        container.innerHTML = '<div class="empty-state"><p>Yükleniyor…</p></div>';
+
+        const { cards, total } = await Sync.fetchCards({ search, wordType, family, page, pageSize });
 
         if (!cards.length) {
             container.innerHTML = '<div class="empty-state"><p>Kart bulunamadı.</p></div>';
+            document.getElementById('cardListPagination').style.display = 'none';
             return;
         }
 
@@ -135,6 +132,19 @@ const UI = {
                 </div>
             </div>`;
         }).join('');
+
+        // Sayfalama
+        const totalPages = Math.ceil(total / pageSize);
+        const pagBar = document.getElementById('cardListPagination');
+        if (totalPages > 1) {
+            pagBar.style.display = 'flex';
+            document.getElementById('paginationInfo').textContent =
+                `${page + 1} / ${totalPages} sayfa  (${total} kart)`;
+            document.getElementById('prevPageBtn').disabled = page === 0;
+            document.getElementById('nextPageBtn').disabled = page >= totalPages - 1;
+        } else {
+            pagBar.style.display = 'none';
+        }
     },
 
     // -------- Stats --------

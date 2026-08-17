@@ -308,6 +308,7 @@ kbd {
 .filter-select:focus { outline:none; border-color:var(--accent); }
 .list-actions { display:flex; gap:8px; }
 .cards-list { display:flex; flex-direction:column; gap:10px; }
+.pagination-bar { display:flex; align-items:center; justify-content:center; gap:16px; padding:16px 0; }
 .card-list-item {
     background:var(--bg-card); border:1px solid var(--border);
     border-radius:var(--r); padding:16px 20px;
