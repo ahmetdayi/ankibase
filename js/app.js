@@ -688,8 +688,7 @@ function initApp() {
         const filterFamily = document.createElement('input');
         filterFamily.id          = 'filterFamily';
         filterFamily.placeholder = 'Aile filtrele…';
-        filterFamily.className   = 'search-input';
-        filterFamily.style.maxWidth = '160px';
+        filterFamily.className   = 'search-input search-input--family';
         filterFamily.setAttribute('autocomplete', 'off');
         filterFamily.addEventListener('input', () => { _resetCardListPage(); UI.renderCardList(); });
         const filterType = document.getElementById('filterType');

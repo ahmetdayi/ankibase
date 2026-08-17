@@ -293,6 +293,7 @@ kbd {
     display:flex; gap:12px; margin-bottom:20px;
     flex-wrap:wrap; align-items:center;
 }
+.search-input--family { max-width:160px; }
 .search-input {
     flex:1; min-width:200px;
     background:var(--bg-card); border:1px solid var(--border);
@@ -599,6 +600,7 @@ kbd {
     .btn-rating { min-width:80px; padding:12px; font-size:13px; }
     .list-controls { flex-direction:column; }
     .search-input, .filter-select { width:100%; min-width:unset; box-sizing:border-box; }
+    .search-input--family { max-width:100%; }
     .list-actions { flex-wrap:wrap; }
     .list-actions .btn { flex:1 1 auto; justify-content:center; min-width:0; font-size:12px; padding:8px 10px; }
     .list-actions label.btn { flex:1 1 auto; text-align:center; }
