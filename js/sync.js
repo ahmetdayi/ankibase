@@ -10,7 +10,6 @@ const Sync = {
     user:       null,
     lastSynced: null,
     _channel:   null,
-    _pollTimer: null,
 
     init() {
         this.client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -33,12 +32,6 @@ const Sync = {
             .on('broadcast', { event: 'card_deleted' }, handler)
             .subscribe();
 
-        // DELETE Realtime güvenilir değil — 10sn'de bir poll ile yakala
-        if (this._pollTimer) clearInterval(this._pollTimer);
-        this._pollTimer = setInterval(async () => {
-            await this.pullAndMerge();
-            if (typeof UI !== 'undefined') UI.renderDashboard();
-        }, 10000);
     },
 
     // ── Auth ─────────────────────────────────────────────────
