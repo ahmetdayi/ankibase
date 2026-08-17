@@ -113,10 +113,15 @@ const Study = {
         document.getElementById('backTargetWord').textContent = card.targetWord;
         document.getElementById('backWordType').textContent   = UI.wordTypeName(card.wordType);
 
-        const meaningLabel = card.meaning
-            ? ((card.meaningLang || 'tr') === 'en' ? '🇬🇧 ' : '🇹🇷 ') + card.meaning
-            : '';
-        this._setOrHide('backMeaning', meaningLabel);
+        const meaningParts = [];
+        if (card.meaning)   meaningParts.push('🇹🇷 ' + card.meaning);
+        if (card.meaningEn) meaningParts.push('🇬🇧 ' + card.meaningEn);
+        // Eski kartlar için geriye dönük uyumluluk (tek alan, EN dili)
+        if (!card.meaningEn && card.meaning && card.meaningLang === 'en') {
+            meaningParts.length = 0;
+            meaningParts.push('🇬🇧 ' + card.meaning);
+        }
+        this._setOrHide('backMeaning', meaningParts.join('  '));
         document.getElementById('backExplanation').textContent = card.explanation || '';
         this._setOrHide('backExample', card.extraExample ? '✦ ' + card.extraExample : '');
         this._setOrHide('backNotes',   card.notes        ? '📝 ' + card.notes       : '');

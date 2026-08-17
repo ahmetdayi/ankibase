@@ -135,7 +135,7 @@ function editCard(id) {
     document.getElementById('targetWordInput').value   = card.targetWord;
     document.getElementById('wordTypeSelect').value    = card.wordType;
     document.getElementById('meaningInput').value      = card.meaning      || '';
-    setMeaningLang(card.meaningLang || 'tr');
+    document.getElementById('meaningEnInput').value    = card.meaningEn    || '';
     document.getElementById('explanationInput').value  = card.explanation  || '';
     document.getElementById('extraExampleInput').value = card.extraExample || '';
     document.getElementById('notesInput').value        = card.notes        || '';
@@ -154,7 +154,6 @@ function resetForm() {
     document.getElementById('formTitle').textContent = 'Yeni Kart Ekle';
     document.getElementById('clickablePreviewGroup').style.display = 'none';
     document.getElementById('clickablePreview').innerHTML = '';
-    setMeaningLang('tr');
     navigateTo('dashboard');
 }
 
@@ -568,7 +567,7 @@ function initApp() {
             targetWord:   document.getElementById('targetWordInput').value,
             wordType:     document.getElementById('wordTypeSelect').value,
             meaning:      document.getElementById('meaningInput').value,
-            meaningLang:  document.getElementById('meaningLangInput').value || 'tr',
+            meaningEn:    document.getElementById('meaningEnInput').value,
             explanation:  document.getElementById('explanationInput').value,
             extraExample: document.getElementById('extraExampleInput').value,
             notes:        document.getElementById('notesInput').value,
