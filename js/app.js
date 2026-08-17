@@ -154,7 +154,7 @@ function resetForm() {
     document.getElementById('formTitle').textContent = 'Yeni Kart Ekle';
     document.getElementById('clickablePreviewGroup').style.display = 'none';
     document.getElementById('clickablePreview').innerHTML = '';
-    navigateTo('dashboard');
+    navigateTo('card-list');
 }
 
 function _csvBlob(csvString) {
