@@ -584,3 +584,31 @@ kbd {
     .back-target-word { font-size:22px; }
     .back-meaning { font-size:17px; }
 }
+
+/* ── Progressive reveal ─────────────────────────────────────── */
+.reveal-wrapper {
+    cursor: pointer;
+    padding: 8px 16px;
+    border: 1.5px dashed var(--border);
+    border-radius: 10px;
+    color: var(--text-muted);
+    font-size: 13px;
+    text-align: center;
+    user-select: none;
+    transition: background 0.15s, border-color 0.15s;
+}
+.reveal-wrapper:hover {
+    background: rgba(99,102,241,.07);
+    border-color: var(--accent, #6366f1);
+    color: var(--text-secondary);
+}
+.reveal-wrapper .reveal-content { display: none; }
+.reveal-wrapper.revealed {
+    cursor: default;
+    border: none;
+    padding: 2px 0;
+    text-align: left;
+    background: none !important;
+}
+.reveal-wrapper.revealed .reveal-hint { display: none; }
+.reveal-wrapper.revealed .reveal-content { display: block; }
