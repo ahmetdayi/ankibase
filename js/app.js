@@ -10,7 +10,8 @@ function _showAuthScreen() {
 }
 
 function _hideAuthScreen() {
-    document.getElementById('authScreen').style.display = 'none';
+    const el = document.getElementById('authScreen');
+    if (el) el.remove();
 }
 
 async function _startApp() {
