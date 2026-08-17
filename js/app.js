@@ -16,14 +16,12 @@ function _hideAuthScreen() {
 
 async function _startApp() {
     _hideAuthScreen();
-    UI.showToast('Yükleniyor…');
     await Sync.pullAndMerge();
     Sync.subscribeToChanges();
     if (!_appInitialized) {
         initApp();
         _appInitialized = true;
     } else {
-        Cards.init();
         UI.renderDashboard();
     }
     _updateAccountUI();
