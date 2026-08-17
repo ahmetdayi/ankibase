@@ -600,7 +600,25 @@ kbd {
     .list-controls { flex-direction:column; }
     .search-input, .filter-select { width:100%; }
     .card-list-item { flex-direction:column; }
+    .card-list-actions { justify-content:flex-end; }
     .card-list-due { margin-left:0; }
+
+    /* View modal — mobilde tam genişlik, alttan açılır his */
+    .card-view-modal {
+        max-width:100%;
+        max-height:92vh;
+        border-radius:var(--r-lg) var(--r-lg) 0 0;
+        margin-top:auto;
+    }
+    .modal-overlay { align-items:flex-end; padding:0; }
+
+    /* Pagination bar — küçük ekranda sıkışmasın */
+    .pagination-bar { gap:10px; }
+    .pagination-bar .btn { padding:8px 14px; font-size:13px; }
+
+    /* cvf-row mobilde dikey dizilim */
+    .cvf-row { flex-direction:column; gap:4px; }
+    .cvf-label { min-width:unset; }
 }
 @media (max-width:480px) {
     .stats-grid { grid-template-columns:1fr 1fr; gap:10px; }
