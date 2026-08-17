@@ -585,6 +585,10 @@ kbd {
     .back-meaning { font-size:17px; }
 }
 
+/* Search input X butonunu gizle */
+#filterFamily::-webkit-search-cancel-button { display: none; }
+#filterFamily::-webkit-search-decoration { display: none; }
+
 /* ── Progressive reveal ─────────────────────────────────────── */
 .reveal-wrapper {
     cursor: pointer;
