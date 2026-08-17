@@ -167,6 +167,8 @@ const Sync = {
             due_date:        card.dueDate,
             last_reviewed_at: card.lastReviewedAt || null,
             review_count:    card.reviewCount    || 0,
+            again_count:     card.againCount     || 0,
+            word_family:     card.wordFamily     || null,
             created_at:      card.createdAt      || new Date().toISOString(),
         };
     },
@@ -190,6 +192,8 @@ const Sync = {
             dueDate:        r.due_date,
             lastReviewedAt: r.last_reviewed_at,
             reviewCount:    r.review_count,
+            againCount:     r.again_count     || 0,
+            wordFamily:     r.word_family     || null,
             createdAt:      r.created_at,
         };
     },

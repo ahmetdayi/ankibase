@@ -7,7 +7,44 @@ const Study = {
     isAnswerShown: false,
 
     start() {
-        this.queue        = Cards.getDue();
+        const settings = Storage.loadSettings();
+        const limit    = settings.dailyLimit || 20;
+        const newLimit = settings.newPerDay  || 5;
+
+        // Vacation mode: uzun aradan sonra limiti geçici artır
+        const stats   = Storage.loadStats();
+        const today   = Algorithm.todayStr();
+        const lastDay = stats.lastStudyDate;
+        const gapDays = lastDay
+            ? Math.floor((new Date(today) - new Date(lastDay)) / 86400000)
+            : 0;
+
+        let effectiveLimit = limit;
+        if (gapDays >= 3) {
+            effectiveLimit = Math.min(Math.round(limit * (1 + gapDays * 0.15)), 50);
+            setTimeout(() => {
+                if (typeof UI !== 'undefined') {
+                    UI.showToast(`${gapDays} günlük aradan sonra hoş geldin! Bugün ${effectiveLimit} kart.`);
+                }
+            }, 500);
+        }
+
+        const allDue    = Cards.getDue();
+        const newCards  = allDue.filter(c => c.repetitions === 0);
+        const reviewCards = allDue.filter(c => c.repetitions > 0);
+
+        // En uzun bekleyen review kartları önce gelsin
+        reviewCards.sort((a, b) => a.dueDate < b.dueDate ? -1 : 1);
+
+        const newSlots    = Math.min(newCards.length, newLimit);
+        const reviewSlots = effectiveLimit - newSlots;
+
+        const picked = [
+            ...newCards.slice(0, newSlots),
+            ...reviewCards.slice(0, reviewSlots),
+        ];
+
+        this.queue        = picked;
         this.currentIndex = 0;
         this.isAnswerShown = false;
         this._render();
@@ -90,6 +127,25 @@ const Study = {
             tagsEl.style.display = 'flex';
         } else {
             tagsEl.style.display = 'none';
+        }
+
+        const familyEl = document.getElementById('backFamily');
+        if (card.wordFamily) {
+            const siblings = Cards.getAll().filter(
+                c => c.wordFamily === card.wordFamily && c.id !== card.id
+            );
+            if (siblings.length) {
+                familyEl.innerHTML =
+                    `<div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">🔗 ${UI._esc(card.wordFamily)} ailesi</div>` +
+                    siblings.map(s =>
+                        `<span class="tag-pill" style="background:var(--accent,#6366f1);color:#fff;opacity:.85">${UI._esc(s.targetWord)} <small style="opacity:.75">${UI.wordTypeName(s.wordType)}</small></span>`
+                    ).join('');
+                familyEl.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin-top:10px;flex-direction:column';
+            } else {
+                familyEl.style.display = 'none';
+            }
+        } else {
+            familyEl.style.display = 'none';
         }
     },
 

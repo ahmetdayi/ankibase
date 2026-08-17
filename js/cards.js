@@ -33,6 +33,8 @@ const Cards = {
             dueDate:      Algorithm.todayStr(),
             lastReviewedAt: null,
             reviewCount:  0,
+            againCount:   0,
+            wordFamily:   (data.wordFamily || '').trim() || null,
             createdAt:    new Date().toISOString(),
         };
         this._list.unshift(card);
@@ -43,6 +45,9 @@ const Cards = {
     update(id, data) {
         const idx = this._list.findIndex(c => c.id === id);
         if (idx === -1) return null;
+        const existingTags = this._parseTags(data.tags);
+        // Düzenleme yapılınca leech sıfırla (againCount ve leech etiketi temizlenir)
+        const cleanTags = existingTags.filter(t => t !== 'leech');
         this._list[idx] = {
             ...this._list[idx],
             sentence:     data.sentence.trim(),
@@ -53,8 +58,10 @@ const Cards = {
             explanation:  data.explanation.trim(),
             extraExample: (data.extraExample || '').trim(),
             notes:        (data.notes       || '').trim(),
-            tags:         this._parseTags(data.tags),
+            tags:         cleanTags,
             difficulty:   data.difficulty || 'normal',
+            againCount:   0,
+            wordFamily:   (data.wordFamily || '').trim() || null,
         };
         this._save();
         return this._list[idx];
@@ -70,9 +77,22 @@ const Cards = {
         if (!card) return;
         const result = Algorithm.calculate(card, rating);
         const idx = this._list.findIndex(c => c.id === id);
+
+        let againCount = card.againCount || 0;
+        let tags = [...(card.tags || [])];
+        if (rating === 'again') {
+            againCount += 1;
+            // 7+ kez again → leech etiketi ekle
+            if (againCount >= 7 && !tags.includes('leech')) {
+                tags = [...tags, 'leech'];
+            }
+        }
+
         this._list[idx] = {
             ...card,
             ...result,
+            tags,
+            againCount,
             lastReviewedAt: new Date().toISOString(),
             reviewCount: (card.reviewCount || 0) + 1,
         };

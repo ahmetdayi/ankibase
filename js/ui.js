@@ -89,8 +89,9 @@ const UI = {
 
     // -------- Card List --------
     renderCardList() {
-        const search = (document.getElementById('searchInput')?.value || '').toLowerCase();
-        const type   =  document.getElementById('filterType')?.value  || '';
+        const search  = (document.getElementById('searchInput')?.value  || '').toLowerCase();
+        const type    =  document.getElementById('filterType')?.value   || '';
+        const family  = (document.getElementById('filterFamily')?.value || '').toLowerCase().trim();
         let cards = Cards.getAll();
 
         if (search) cards = cards.filter(c =>
@@ -98,7 +99,8 @@ const UI = {
             c.targetWord.toLowerCase().includes(search) ||
             c.meaning.toLowerCase().includes(search)
         );
-        if (type) cards = cards.filter(c => c.wordType === type);
+        if (type)   cards = cards.filter(c => c.wordType === type);
+        if (family) cards = cards.filter(c => (c.wordFamily || '').toLowerCase().includes(family));
 
         const container = document.getElementById('cardsList');
         if (!container) return;
@@ -123,6 +125,8 @@ const UI = {
                         <span class="card-list-word">${this._esc(card.targetWord)}</span>
                         ${card.meaning ? `<span class="card-list-meaning">— ${this._esc(card.meaning)}</span>` : ''}
                         <span class="card-list-due ${overdue ? 'overdue' : ''}">${dueText}</span>
+                        ${card.wordFamily ? `<span class="tag-pill" style="background:var(--accent,#6366f1);color:#fff;opacity:.85">🔗 ${this._esc(card.wordFamily)}</span>` : ''}
+                        ${(card.tags || []).includes('leech') ? '<span class="tag-pill" style="background:var(--error,#ef4444);color:#fff">🐛 leech</span>' : ''}
                     </div>
                 </div>
                 <div class="card-list-actions">

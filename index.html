@@ -221,6 +221,11 @@
                 </div>
 
                 <div class="form-group">
+                    <label for="wordFamilyInput">Kelime Ailesi <span style="color:var(--text-muted);font-size:12px">(isteğe bağlı)</span></label>
+                    <input type="text" id="wordFamilyInput" placeholder="örn. quick, happy" autocomplete="off">
+                </div>
+
+                <div class="form-group">
                     <label for="difficultySelect">Başlangıç Zorluk Seviyesi</label>
                     <select id="difficultySelect">
                         <option value="normal">Normal</option>
@@ -241,6 +246,7 @@
     <section class="page" id="page-card-list">
         <div class="list-controls">
             <input type="text" id="searchInput" placeholder="Kart ara…" class="search-input">
+            <input type="text" id="filterFamily" placeholder="Aile filtrele…" class="search-input" style="max-width:160px">
             <select id="filterType" class="filter-select">
                 <option value="">Tüm Türler</option>
                 <option value="noun">Noun / İsim</option>
@@ -309,6 +315,7 @@
                             <div class="back-example" id="backExample"></div>
                             <div class="back-notes" id="backNotes"></div>
                             <div class="back-tags" id="backTags"></div>
+                            <div class="back-family" id="backFamily"></div>
                         </div>
                     </div>
                 </div>
@@ -396,6 +403,10 @@
                 <div class="setting-item">
                     <label>Günlük Kart Limiti</label>
                     <input type="number" id="dailyLimitInput" value="20" min="1" max="500" class="settings-input">
+                </div>
+                <div class="setting-item">
+                    <label>Günlük Yeni Kart</label>
+                    <input type="number" id="newPerDayInput" value="5" min="1" max="50" class="settings-input">
                 </div>
             </div>
 

@@ -21,7 +21,7 @@ const Storage = {
     },
     loadSettings() {
         const d = localStorage.getItem(this.KEYS.SETTINGS);
-        return d ? JSON.parse(d) : { theme: 'dark', dailyLimit: 20 };
+        return d ? JSON.parse(d) : { theme: 'dark', dailyLimit: 20, newPerDay: 5 };
     },
 
     saveStats(stats) {

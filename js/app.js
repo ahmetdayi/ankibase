@@ -141,6 +141,7 @@ function editCard(id) {
     document.getElementById('notesInput').value        = card.notes        || '';
     document.getElementById('tagsInput').value         = (card.tags || []).join(', ');
     document.getElementById('difficultySelect').value  = card.difficulty   || 'normal';
+    document.getElementById('wordFamilyInput').value   = card.wordFamily   || '';
 
     _buildClickablePreview(card.sentence, card.targetWord);
     navigateTo('add-card');
@@ -542,6 +543,8 @@ function initApp() {
     UI.setTheme(settings.theme || 'dark');
     const limitEl = document.getElementById('dailyLimitInput');
     if (limitEl) limitEl.value = settings.dailyLimit || 20;
+    const newPerDayEl = document.getElementById('newPerDayInput');
+    if (newPerDayEl) newPerDayEl.value = settings.newPerDay || 5;
 
     // ── Navigasyon ──
     document.querySelectorAll('.nav-link').forEach(link => {
@@ -571,6 +574,7 @@ function initApp() {
             notes:        document.getElementById('notesInput').value,
             tags:         document.getElementById('tagsInput').value,
             difficulty:   document.getElementById('difficultySelect').value,
+            wordFamily:   document.getElementById('wordFamilyInput').value,
         };
         if (id) {
             const updated = Cards.update(id, data);
@@ -617,10 +621,20 @@ function initApp() {
         UI.showToast('Kart silindi.', 'error');
     });
 
+    // ── Aile filtresi ──
+    document.getElementById('filterFamily')?.addEventListener('input', () => UI.renderCardList());
+
     // ── Günlük limit ayarı ──
     document.getElementById('dailyLimitInput')?.addEventListener('change', e => {
         const s = Storage.loadSettings();
         s.dailyLimit = parseInt(e.target.value) || 20;
+        Storage.saveSettings(s);
+    });
+
+    // ── Günlük yeni kart ayarı ──
+    document.getElementById('newPerDayInput')?.addEventListener('change', e => {
+        const s = Storage.loadSettings();
+        s.newPerDay = parseInt(e.target.value) || 5;
         Storage.saveSettings(s);
     });
 
