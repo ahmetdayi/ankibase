@@ -3,7 +3,7 @@
    Sürüm numarasını (CACHE) her uygulama güncellemesinde artır
    ============================================================ */
 
-const CACHE = 'ankibase-v9';
+const CACHE = 'ankibase-v10';
 
 const PRECACHE_ASSETS = [
     './',

@@ -95,7 +95,7 @@ const UI = {
         const wordType =  document.getElementById('filterType')?.value   || '';
         const family   = (document.getElementById('filterFamily')?.value || '').trim();
         const page     = typeof _cardListPage !== 'undefined' ? _cardListPage : 0;
-        const pageSize = 3; // TEST — gerçekte 20
+        const pageSize = 20;
 
         const container = document.getElementById('cardsList');
         if (!container) return;
