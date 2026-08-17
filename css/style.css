@@ -598,7 +598,10 @@ kbd {
     .rating-buttons { gap:8px; }
     .btn-rating { min-width:80px; padding:12px; font-size:13px; }
     .list-controls { flex-direction:column; }
-    .search-input, .filter-select { width:100%; }
+    .search-input, .filter-select { width:100%; min-width:unset; box-sizing:border-box; }
+    .list-actions { flex-wrap:wrap; }
+    .list-actions .btn { flex:1 1 auto; justify-content:center; min-width:0; font-size:12px; padding:8px 10px; }
+    .list-actions label.btn { flex:1 1 auto; text-align:center; }
     .card-list-item { flex-direction:column; }
     .card-list-actions { justify-content:flex-end; }
     .card-list-due { margin-left:0; }
